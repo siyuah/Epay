@@ -49,7 +49,7 @@ case 'getcount':
 	$tongji_cachetime=getSetting('tongji_cachetime', true);
 	$tongji_cache = $CACHE->read('tongji');
 	if($tongji_cachetime+3600>=time() && $tongji_cache && !isset($_GET['getnew'])){
-		$array = unserialize($tongji_cache);
+		$array = safe_unserialize($tongji_cache, []);
 		$result=["code"=>0,"type"=>"cache","paytype"=>$paytype,"channel"=>$channel,"count1"=>$count1,"count2"=>$count2,"usermoney"=>round($array['usermoney'],2),"settlemoney"=>round($array['settlemoney'],2),"success_rate"=>$success_rate,"order_today"=>$array['order_today'],"order"=>[]];
 	}else{
 		$usermoney=$DB->getColumn("SELECT SUM(money) FROM pre_user WHERE money!='0.00'");
@@ -104,7 +104,7 @@ case 'getcount':
 	for($i=1;$i<7;$i++){
 		$day = date("Ymd", strtotime("-{$i} day"));
 		if($order_tongji = $CACHE->read('order_'.$day)){
-			$result["order"][$day] = unserialize($order_tongji);
+			$result["order"][$day] = safe_unserialize($order_tongji, []);
 		}else{
 			break;
 		}

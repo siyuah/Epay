@@ -76,7 +76,7 @@ case 'info':
 			'keytype' => $userrow['keytype'],
 			'publickey' => $userrow['publickey'],
 			'ordername' => $userrow['ordername'],
-			'msgconfig' => unserialize($userrow['msgconfig']),
+			'msgconfig' => safe_unserialize($userrow['msgconfig'], []),
 			'remain_money' => $userrow['remain_money'],
 			'voice_devid' => $userrow['voice_devid'],
 			'voice_order' => $userrow['voice_order'],
@@ -225,7 +225,7 @@ case 'sendcode':
 break;
 case 'verifycode':
 	$code=trim($_POST['code']);
-	
+
 	if($conf['verifytype']==1){
 		$sendto = $userrow['phone'];
 		$type = 1;
@@ -606,7 +606,7 @@ case 'certificate':
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"支付宝接口返回异常'.$e->getMessage().'"}');
 		}
-		
+
 		if(isset($certifyResult['certify_id'])){
 			$_SESSION[$uid.'_certify']=true;
 			$sqs=$DB->exec("update `pre_user` set `cert`=0,`certtype`=:certtype,`certmethod`=:certmethod,`certno`=:certno,`certname`=:certname,`certtoken`=:certtoken where `uid`=:uid", [':certtype'=>$certtype, ':certmethod'=>0, ':certno'=>$certno, ':certname'=>$certname, ':certtoken'=>$certifyResult['certify_id'], ':uid'=>$uid]);
@@ -644,7 +644,7 @@ case 'certificate':
 		}catch(Exception $e){
 			exit('{"code":-1,"msg":"支付宝接口返回异常'.$e->getMessage().'"}');
 		}
-		
+
 		$_SESSION[$uid.'_certify']=true;
 		$sqs=$DB->exec("update `pre_user` set `cert`=0,`certtype`=:certtype,`certmethod`=:certmethod,`certno`=:certno,`certname`=:certname,`certtoken`=:certtoken where `uid`=:uid", [':certtype'=>$certtype, ':certmethod'=>0, ':certno'=>$certno, ':certname'=>$certname, ':certtoken'=>$result['verify_id'], ':uid'=>$uid]);
 		if($sqs!==false){
@@ -790,7 +790,7 @@ case 'printOrder':
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	if($row['status']==0)exit('{"code":-1,"msg":"订单尚未支付，无法打印！"}');
 	if(!$conf['orderprint'] || $userrow['print_order']==0)exit('{"code":-1,"msg":"未开启打印功能"}');
-	$print_config = unserialize($userrow['print_config']);
+	$print_config = safe_unserialize($userrow['print_config'], []);
 	$typeshowname = $DB->findColumn('type', 'showname', ['id'=>$row['type']]);
 	$param = ['trade_no'=>$row['trade_no'], 'name'=>$row['name'], 'money'=>$row['money'], 'type'=>$typeshowname, 'time'=>$row['endtime'], 'tid'=>$row['tid'], 'codename'=>$userrow['codename'], 'remark'=>$row['param']];
 	try{
@@ -1039,14 +1039,14 @@ case 'statistics':
 		}
 	}
     // 统计数据
-    $resultMoneyData = $DB->getRow("SELECT 
+    $resultMoneyData = $DB->getRow("SELECT
     SUM(money) AS totalMoney,
     SUM(CASE WHEN A.status = 1 THEN money ELSE 0 END) AS successMoney,
     SUM(CASE WHEN A.status = 0 THEN money ELSE 0 END) AS unpaidMoney,
     SUM(CASE WHEN A.status = 2 THEN refundmoney ELSE 0 END) AS refundMoney
     FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} order by trade_no desc");
 
-    $resultCount = $DB->getRow("SELECT 
+    $resultCount = $DB->getRow("SELECT
     COUNT(*) AS totalCount,
     SUM(CASE WHEN A.status = 1 THEN 1 ELSE 0 END) AS successCount,
     SUM(CASE WHEN A.status = 0 THEN 1 ELSE 0 END) AS unpaidCount,
@@ -1208,7 +1208,7 @@ case 'transfer_statistics':
 		}
 	}
 	$totalMoney = $DB->getColumn("SELECT SUM(money) FROM pre_transfer WHERE{$sql} AND status<>2");
-	$resultCount = $DB->getRow("SELECT 
+	$resultCount = $DB->getRow("SELECT
     COUNT(*) AS totalCount,
     COUNT(status = 0 OR NULL) AS status0count,
     COUNT(status = 1 OR NULL) AS status1count,
@@ -1249,7 +1249,7 @@ case 'refund_submit': //确认退款
 	if(!is_numeric($money) || !preg_match('/^[0-9.]+$/', $money))exit('{"code":-1,"msg":"金额输入错误"}');
 	if(getMd5Pwd($pwd, $userrow['uid'])!=$userrow['pwd'])
 		exit('{"code":-1,"msg":"登录密码输入错误！"}');
-	
+
 	$refund_no = date("YmdHis").rand(11111,99999);
 	$result = \lib\Order::refund($refund_no, $trade_no, $money, 1, $uid);
 	if($result['code'] == 0){

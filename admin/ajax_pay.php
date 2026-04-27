@@ -168,7 +168,7 @@ case 'setChannel':
 	if($status==1 && empty($row['config'])){
 		exit('{"code":-1,"msg":"请先配置好密钥后再开启"}');
 	}
-	if($status==1 && $conf['admin_pwd']=='123456'){
+	if($status==1 && verifyStoredPassword('123456', $conf['admin_pwd'])){
 		exit('{"code":-1,"msg":"请先修改默认管理员密码后再开启支付通道"}');
 	}
 	$sql = "UPDATE pre_channel SET status=:status WHERE id=:id";

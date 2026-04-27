@@ -13,7 +13,8 @@ if(!in_array($app, ['alipay','wxpay','qqpay','bank'], true)) $app = 'alipay';
 if(isset($_POST['submit'])){
 	requireAdminCsrf(true);
 	$out_biz_no = trim($_POST['out_biz_no']);
-	if(!isset($_POST['paypwd']) || $_POST['paypwd']!==$conf['admin_paypwd'])showmsg('支付密码错误',3);
+	if(!isset($_POST['paypwd']) || !verifyAdminPaypwd($_POST['paypwd']))showmsg('支付密码错误',3);
+	migrateStoredPasswordIfNeeded('admin_paypwd', $_POST['paypwd'], $conf['admin_paypwd']);
 	$payee_account = htmlspecialchars(trim($_POST['payee_account']));
 	$payee_real_name = htmlspecialchars(trim($_POST['payee_real_name']));
 	$money = trim($_POST['money']);
@@ -181,11 +182,11 @@ for (i = 0; i < items.length; i++) {
 function saveRecentPayer(type, account, name) {
 	var key = 'recent_payers_' + type;
 	var payers = JSON.parse(localStorage.getItem(key) || '[]');
-	
+
 	payers = payers.filter(function(payer) {
 		return payer.account !== account;
 	});
-	
+
 	payers.unshift({
 		account: account,
 		name: name,
@@ -195,7 +196,7 @@ function saveRecentPayer(type, account, name) {
 	if (payers.length > 5) {
 		payers = payers.slice(0, 5);
 	}
-	
+
 	localStorage.setItem(key, JSON.stringify(payers));
 }
 
@@ -206,16 +207,16 @@ function getRecentPayers(type) {
 
 function showRecentPayers(type) {
 	var payers = getRecentPayers(type);
-	
+
 	if (payers.length === 0) {
 		layer.msg('暂无最近付款记录');
 		return;
 	}
-	
+
 	var html = '<div class="recent-payers-popup">';
 	html += '<h4 style="margin:15px;">最近付款人</h4>';
 	html += '<div class="list-group" style="max-height:300px;overflow-y:auto;">';
-	
+
 	payers.forEach(function(payer, index) {
 		html += '<a href="javascript:void(0)" class="list-group-item payer-item" data-account="' + payer.account + '" data-name="' + (payer.name || '') + '">';
 		html += '<div><strong>' + payer.account + '</strong></div>';
@@ -224,9 +225,9 @@ function showRecentPayers(type) {
 		}
 		html += '</a>';
 	});
-	
+
 	html += '</div></div>';
-	
+
 	layer.open({
 		type: 1,
 		title: false,
@@ -238,12 +239,12 @@ function showRecentPayers(type) {
 			$(layero).find('.payer-item').on('click', function() {
 				var account = $(this).data('account');
 				var name = $(this).data('name');
-				
+
 				$('input[name="payee_account"]').val(account);
 				if (name) {
 					$('input[name="payee_real_name"]').val(name);
 				}
-				
+
 				layer.closeAll();
 			});
 		}
@@ -260,7 +261,7 @@ $(document).ready(function() {
 		var type = $('input[name="type"]').val();
 		var account = $('input[name="payee_account"]').val();
 		var name = $('input[name="payee_real_name"]').val();
-		
+
 		if (account) {
 			saveRecentPayer(type, account, name);
 		}

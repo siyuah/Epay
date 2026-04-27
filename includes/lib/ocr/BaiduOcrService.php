@@ -154,7 +154,7 @@ class BaiduOcrService implements OcrServiceInterface
         $cacheKey = 'baidu_ocr_access_token';
         $row = $CACHE->read($cacheKey);
         if ($row) {
-            $row = unserialize($row);
+            $row = \safe_unserialize($row, []);
             if($row['access_token'] && strtotime($row['expiretime']) - 200 >= time() && !$force){
                 return $row['access_token'];
             }

@@ -21,7 +21,7 @@ class Cache {
 		global $_CACHE;
 		$_CACHE=array();
 		$cache = $this->read('config');
-		$_CACHE = @unserialize($cache);
+		$_CACHE = @unserialize($cache, ['allowed_classes' => false]);
 		if(empty($_CACHE['version']))$_CACHE = $this->update();
 		return $_CACHE;
 	}

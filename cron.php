@@ -73,7 +73,7 @@ elseif($_GET['do']=='order'){
 			$i=0;
 			while($row = $rs->fetch())
 			{
-				$row['msgconfig'] = unserialize($row['msgconfig']);
+				$row['msgconfig'] = safe_unserialize($row['msgconfig'], []);
 				if($row['msgconfig']['balance'] > 0 && $row['msgconfig']['balance_money'] > 0 && $row['money'] < $row['msgconfig']['balance_money']){
 					$day = $CACHE->read('balance_notice_'.$row['uid']);
 					if($day && $day == date('Ymd')) continue;

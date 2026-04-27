@@ -181,7 +181,7 @@ if(strlen($userrow['phone'])==11){
 				 </div>
 				</div>
 
-								
+
 				<?php if($conf['voicenotice'] == 1){?><div class="line line-dashed b-b line-lg pull-in"></div>
 				<div class="form-group"><div class="col-sm-offset-2 col-sm-4"><h4>云音响设置：</h4></div></div>
 				<div class="form-group">
@@ -208,7 +208,7 @@ if(strlen($userrow['phone'])==11){
 				</div><?php }?>
 
 				<?php if($conf['orderprint'] == 1){
-					$print_config = unserialize($userrow['print_config']);
+					$print_config = safe_unserialize($userrow['print_config'], []);
 				?><div class="line line-dashed b-b line-lg pull-in"></div>
 				<div class="form-group"><div class="col-sm-offset-2 col-sm-4"><h4>小票打印设置：</h4></div></div>
 				<div class="form-group">
@@ -329,14 +329,14 @@ if(strlen($userrow['phone'])==11){
 						<div class="input-group"><input class="form-control" type="text" name="pay_minmoney" value="<?php echo $userrow['pay_minmoney']?>" placeholder="留空则不限制最小支付金额"><span class="input-group-addon">元</span></div>
 					</div>
 				</div>
-				
+
 				<div class="form-group">
 				  <div class="col-sm-offset-2 col-sm-4"><input type="button" id="editInfo" value="确定修改" class="btn btn-primary form-control"/><br/>
 				 </div>
 				</div>
 
 <?php if($conf['wxnotice']==1 || $conf['mailnotice']==1 || $conf['robotnotice']==1){
-	$userrow['msgconfig'] = unserialize($userrow['msgconfig']);
+	$userrow['msgconfig'] = safe_unserialize($userrow['msgconfig'], []);
 ?>
 				<div class="line line-dashed b-b line-lg pull-in"></div>
 				<div class="form-group"><div class="col-sm-offset-2 col-sm-4"><h4>消息提醒接收设置：</h4><?php if(!$userrow['wx_uid']&&$conf['wxnotice']==1){?><font color="#ff7373">微信公众号消息需要先绑定微信才可以收到消息提醒</font><?php }?></div></div>
@@ -548,7 +548,7 @@ var handlerEmbed = function (captchaObj) {
 					layer.alert(data.msg);
 					captchaObj.reset();
 				}
-			} 
+			}
 		});
 	}).onError(function(){
 		layer.msg('验证码加载失败，请刷新页面重试', {icon: 5});
@@ -982,7 +982,7 @@ function connect(type){
 			}else{
 				layer.alert(data.msg, {icon: 7});
 			}
-		} 
+		}
 	});
 }
 </script>

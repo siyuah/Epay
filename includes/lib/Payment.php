@@ -30,7 +30,7 @@ class Payment {
             return base64_encode($sign);
         }else{
             $sign = md5($signStr . $md5key);
-            return $sign;	
+            return $sign;
         }
     }
 
@@ -644,7 +644,7 @@ class Payment {
         $data = $DB->getColumn("SELECT ext FROM pre_order WHERE trade_no=:trade_no FOR UPDATE", [':trade_no'=>$trade_no]);
         if($data) {
             $DB->rollBack();
-            return unserialize($data);
+            return \safe_unserialize($data);
         }
         try{
             $data = $func();

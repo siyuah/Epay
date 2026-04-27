@@ -22,14 +22,14 @@ class MsgNotice
             }
         }else{
             $userrow = $DB->find('user', 'phone,email,wx_uid,codename,msgconfig,voice_order,voice_devid,print_order,print_config', ['uid'=>$uid]);
-            $userrow['msgconfig'] = unserialize($userrow['msgconfig']);
+            $userrow['msgconfig'] = \safe_unserialize($userrow['msgconfig'], []);
 
             if($conf['voicenotice'] == 1 && $scene == 'order' && $userrow['voice_order'] == 1 && $param['name']!='付款码收款'){
                 self::send_voice($userrow['voice_devid'], $param['type'], $param['money']);
             }
             if($conf['orderprint'] == 1 && $scene == 'order' && ($userrow['print_order'] == 2 || $userrow['print_order'] == 1 && $param['tid']==3)){
                 $param['codename'] = $userrow['codename'];
-                $print_config = unserialize($userrow['print_config']);
+                $print_config = \safe_unserialize($userrow['print_config'], []);
                 (new Printer($conf['print_appid'], $conf['print_appsecret']))->print($print_config['devid'], $param, $print_config['count'], $print_config['voice']==1, true);
             }
 
@@ -155,7 +155,7 @@ class MsgNotice
             $jumpurl = $siteurl.'user/';
         }
         if(empty($template_id) || empty($wid)) return false;
-    
+
         $wechat = new \lib\wechat\WechatAPI($wid);
         try{
             return $wechat->sendTemplateMessage($openid, $template_id, $jumpurl, $data);
@@ -185,14 +185,14 @@ class MsgNotice
         if(empty($url)) return false;
         [$title, $content] = self::get_msg_tpl($scene, $param);
         if(empty($content)) return;
-        
+
         return self::robot_webhook($url, $title, $content, $admin);
     }
 
     public static function robot_webhook($url, $title, $content, $admin = false){
         global $conf, $CACHE;
         $content = str_replace(['*', '<br/>', '<b>', '</b>'], ['\*', "\n", '**', '**'], $content);
-        
+
         if (strpos($url, 'oapi.dingtalk.com')) {
             $content = '### '.$title."  \n ".str_replace("\n", "  \n ", $content);
             $post = [

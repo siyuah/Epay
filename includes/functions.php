@@ -486,6 +486,91 @@ function saveSetting($k, $v){
 	global $DB;
 	return $DB->exec("REPLACE INTO pre_config SET v=:v,k=:k", [':v'=>$v, ':k'=>$k]);
 }
+
+function isPasswordHashValue($hash){
+	return is_string($hash) && (strpos($hash, '$2y$') === 0 || strpos($hash, '$2a$') === 0 || strpos($hash, '$argon2i$') === 0 || strpos($hash, '$argon2id$') === 0);
+}
+
+function verifyStoredPassword($password, $stored){
+	if(!is_string($stored) || $stored === '') return false;
+	if(isPasswordHashValue($stored)){
+		return password_verify($password, $stored);
+	}
+	return hash_equals((string)$stored, (string)$password);
+}
+
+function hashStoredPassword($password){
+	return password_hash($password, PASSWORD_DEFAULT);
+}
+
+function migrateStoredPasswordIfNeeded($key, $password, $stored){
+	global $conf, $CACHE;
+	if(isPasswordHashValue($stored)) return false;
+	$hash = hashStoredPassword($password);
+	if(!$hash) return false;
+	if(saveSetting($key, $hash)!==false){
+		$conf[$key] = $hash;
+		if(isset($CACHE)) $CACHE->clear();
+		return true;
+	}
+	return false;
+}
+
+function getAdminSessionHash(){
+	global $conf, $password_hash;
+	return hash('sha256', $conf['admin_user'].'|'.$conf['admin_pwd'].'|'.$password_hash);
+}
+
+function setAdminTokenCookie($token, $expiretime){
+	$options = [
+		'expires' => $expiretime,
+		'path' => '/',
+		'secure' => function_exists('is_https') ? is_https() : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+		'httponly' => true,
+		'samesite' => 'Lax',
+	];
+	if(PHP_VERSION_ID >= 70300){
+		setcookie('admin_token', $token, $options);
+	}else{
+		setcookie('admin_token', $token, $expiretime, '/; samesite=Lax', '', $options['secure'], true);
+	}
+}
+
+function clearAdminTokenCookie(){
+	setAdminTokenCookie('', time() - 2592000);
+}
+
+function isAdminPaypwdVerified($ttl = 900){
+	if(empty($_SESSION['paypwd_verified_at']) || empty($_SESSION['paypwd_hash'])) return false;
+	if(!hash_equals($_SESSION['paypwd_hash'], hash('sha256', (string)$GLOBALS['conf']['admin_paypwd']))) return false;
+	return time() - intval($_SESSION['paypwd_verified_at']) <= $ttl;
+}
+
+function markAdminPaypwdVerified(){
+	$_SESSION['paypwd_verified_at'] = time();
+	$_SESSION['paypwd_hash'] = hash('sha256', (string)$GLOBALS['conf']['admin_paypwd']);
+	unset($_SESSION['paypwd']);
+}
+
+function clearAdminPaypwdVerified(){
+	unset($_SESSION['paypwd'], $_SESSION['paypwd_verified_at'], $_SESSION['paypwd_hash']);
+}
+
+function requireAdminPaypwdVerified($message = '支付密码错误，请返回重新进入该页面'){
+	if(!isAdminPaypwdVerified()) exit(json_encode(['code'=>-1, 'msg'=>$message], JSON_UNESCAPED_UNICODE));
+}
+
+function verifyAdminPaypwd($paypwd){
+	global $conf;
+	return verifyStoredPassword($paypwd, $conf['admin_paypwd']);
+}
+
+function safe_unserialize($data, $default = false){
+	if(!is_string($data) || $data === '') return $default;
+	$result = @unserialize($data, ['allowed_classes' => false]);
+	return $result === false && $data !== serialize(false) ? $default : $result;
+}
+
 function checkGroupSettings($str){
 	foreach(explode(',',$str) as $row){
 		if(!strpos($row,':'))return false;
@@ -615,7 +700,7 @@ function processOrder(&$srow,$notify=true){
 
 	if($srow['tid']==1){ //商户注册
 		changeUserMoney($srow['uid'], $addmoney, true, '订单收入', $srow['trade_no']);
-		$info = unserialize($CACHE->read('reg_'.$srow['trade_no']));
+		$info = safe_unserialize($CACHE->read('reg_'.$srow['trade_no']), []);
 		if($info){
 			$key = random(32);
 			$paystatus = $conf['user_review']==1?2:1;

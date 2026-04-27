@@ -49,7 +49,7 @@ $callback_url = $siteurl.'wework.php';
 
 $errmsg = $CACHE->read('wxkferrmsg');
 if($errmsg){
-	$arr = unserialize($errmsg);
+	$arr = safe_unserialize($errmsg, []);
 	$errmsg = $arr['time'].' - '.$arr['errmsg'];
 }
 

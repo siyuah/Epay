@@ -197,11 +197,12 @@ $("select[name='homepage']").change(function(){
 	$newpwd=trim($_POST['newpwd']);
 	$newpwd2=trim($_POST['newpwd2']);
 	if(!empty($newpwd) && !empty($newpwd2)){
-		if($oldpwd!=$conf['admin_paypwd'])showmsg('旧密码不正确！',3);
+		if(!verifyAdminPaypwd($oldpwd))showmsg('旧密码不正确！',3);
 		if($newpwd!=$newpwd2)showmsg('两次输入的密码不一致！',3);
 		if(strlen($newpwd)<6)showmsg('密码不能少于6位',3);
 		if(strlen($newpwd)>100)showmsg('密码位数过长',3);
-		saveSetting('admin_paypwd',$newpwd);
+		saveSetting('admin_paypwd', hashStoredPassword($newpwd));
+		clearAdminPaypwdVerified();
 	}else{
 		showmsg('新密码不能为空',3);
 	}
@@ -217,9 +218,9 @@ $("select[name='homepage']").change(function(){
 	if($user==null)showmsg('用户名不能为空！',3);
 	saveSetting('admin_user',$user);
 	if(!empty($newpwd) && !empty($newpwd2)){
-		if($oldpwd!=$conf['admin_pwd'])showmsg('旧密码不正确！',3);
+		if(!verifyStoredPassword($oldpwd, $conf['admin_pwd']))showmsg('旧密码不正确！',3);
 		if($newpwd!=$newpwd2)showmsg('两次输入的密码不一致！',3);
-		saveSetting('admin_pwd',$newpwd);
+		saveSetting('admin_pwd', hashStoredPassword($newpwd));
 	}
 	$ad=$CACHE->clear();
 	if($ad)showmsg('修改成功！请重新登录',1);
@@ -1576,13 +1577,13 @@ $("select[name='sms_api']").change(function(){
 }elseif($mod=='notice'){
 $errmsg = $CACHE->read('wxtplerrmsg');
 if($errmsg){
-	$arr = unserialize($errmsg);
+	$arr = safe_unserialize($errmsg, []);
 	$errmsg = $arr['time'].' - '.$arr['errmsg'];
 }
 
 $errmsg2 = $CACHE->read('mailerrmsg');
 if($errmsg2){
-	$arr = unserialize($errmsg2);
+	$arr = safe_unserialize($errmsg2, []);
 	$errmsg2 = $arr['time'].' - '.$arr['errmsg'];
 }
 ?>
@@ -1745,7 +1746,7 @@ if($errmsg2){
 <?php
 $errmsg3 = $CACHE->read('voiceerrmsg');
 if($errmsg3){
-	$arr = unserialize($errmsg3);
+	$arr = safe_unserialize($errmsg3, []);
 	$errmsg3 = $arr['time'].' - '.$arr['errmsg'];
 }
 ?>
@@ -1780,7 +1781,7 @@ if($errmsg3){
 <?php
 $errmsg4 = $CACHE->read('printerrmsg');
 if($errmsg4){
-	$arr = unserialize($errmsg4);
+	$arr = safe_unserialize($errmsg4, []);
 	$errmsg4 = $arr['time'].' - '.$arr['errmsg'];
 }
 ?>

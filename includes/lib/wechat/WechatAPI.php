@@ -127,7 +127,7 @@ class WechatAPI
         $cachekey = 'wx_jsapi_ticket_'.$this->wid;
         $row = $CACHE->read($cachekey);
         if($row){
-            $row = unserialize($row);
+            $row = \safe_unserialize($row, []);
             if($row['ticket'] && strtotime($row['expiretime']) - 200 >= time() && !$force){
                 $this->jsapiTicket = $row['ticket'];
                 return $this->jsapiTicket;

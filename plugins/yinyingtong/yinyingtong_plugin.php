@@ -260,7 +260,7 @@ class yinyingtong_plugin
 			return ['type'=>'qrcode','page'=>'alipay_qrcode','url'=>$code_url];
 		}
 	}
-	
+
 	//支付宝生活号支付
 	static public function alipayjs(){
 		global $conf, $method, $order;
@@ -323,7 +323,7 @@ class yinyingtong_plugin
 			return ['type'=>'qrcode','page'=>'wxpay_qrcode','url'=>$code_url];
 		}
 	}
-	
+
 	//微信手机支付
 	static public function wxwappay(){
 		global $siteurl,$channel, $mdevice;
@@ -385,7 +385,7 @@ class yinyingtong_plugin
 		if($method == 'jsapi'){
 			return ['type'=>'jsapi','data'=>$paydata];
 		}
-		
+
 		if($_GET['d']==1){
 			$redirect_url='data.backurl';
 		}else{
@@ -398,7 +398,7 @@ class yinyingtong_plugin
 	static public function wxminipay(){
 		global $siteurl,$channel, $mdevice;
 		$code = isset($_GET['code'])?trim($_GET['code']):exit('{"code":-1,"msg":"code不能为空"}');
-	
+
 		//①、获取用户openid
 		$wxinfo = \lib\Channel::getWeixin($channel['appwxa']);
 		if(!$wxinfo)exit('{"code":-1,"msg":"支付通道绑定的微信小程序不存在"}');
@@ -495,7 +495,7 @@ class yinyingtong_plugin
 					if($black) exit(json_encode(['code'=>-1, 'msg'=>'系统异常无法完成付款']));
 					$black = $DB->find('blacklist', '*', ['type'=>0, 'content'=>$cardno], null, 1);
 					if($black) exit(json_encode(['code'=>-1, 'msg'=>'系统异常无法完成付款']));
-					
+
 					$randomKey = random(16);
 					$customer_info = [
 						'customer_name' => $name,
@@ -609,7 +609,7 @@ class yinyingtong_plugin
 				$money = $data['amount'];
 				$bill_trade_no = $data['seq_no'];
 
-				$ext = unserialize($order['ext']);
+				$ext = safe_unserialize($order['ext'], []);
 				$ext['transcode'] = $data['transcode'];
 
 				if ($out_trade_no == TRADE_NO) {
@@ -667,7 +667,7 @@ class yinyingtong_plugin
 		require_once(PAY_ROOT.'inc/PayClient.php');
 		$client = new PayClient($channel['appid'], $channel['appkey']);
 
-		$ext = unserialize($order['ext']);
+		$ext = safe_unserialize($order['ext'], []);
 
 		$params = [
 			'scene' => $ext['transcode'] == 'T61' ? '0615' : '0606',
@@ -727,7 +727,7 @@ class yinyingtong_plugin
 
 			$model = \lib\Applyments\CommUtil::getModel2($channel);
 			if($model) $model->notify($data);
-			
+
 			return ['type'=>'html','data'=>'00'];
 		}
 		else {
@@ -751,7 +751,7 @@ class yinyingtong_plugin
 
 			$model = \lib\Complain\CommUtil::getModel($channel);
 			$model->refreshNewInfo($data['complaint_id'].'|'.$data['sub_mchid'], $data['action_type']);
-			
+
 			return ['type'=>'html','data'=>'00'];
 		}
 		else {

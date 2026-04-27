@@ -13,7 +13,8 @@ if(!in_array($app, ['alipay','wxpay'], true)) $app = 'alipay';
 if(isset($_POST['submit'])){
 	requireAdminCsrf(true);
 	$out_biz_no = trim($_POST['out_biz_no']);
-	if(!isset($_POST['paypwd']) || $_POST['paypwd']!==$conf['admin_paypwd'])showmsg('支付密码错误',3);
+	if(!isset($_POST['paypwd']) || !verifyAdminPaypwd($_POST['paypwd']))showmsg('支付密码错误',3);
+	migrateStoredPasswordIfNeeded('admin_paypwd', $_POST['paypwd'], $conf['admin_paypwd']);
 	$money = trim($_POST['money']);
 	$desc = htmlspecialchars(trim($_POST['desc']));
 	if(empty($out_biz_no) || empty($money))showmsg('必填项不能为空',3);

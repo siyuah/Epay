@@ -12,13 +12,13 @@ $callback_url2 = $siteurl.'paypage/wxapplet.php';
 
 $errmsg = $CACHE->read('wxkferrmsg');
 if($errmsg){
-	$arr = unserialize($errmsg);
+	$arr = safe_unserialize($errmsg, []);
 	$errmsg = $arr['time'].' - '.$arr['errmsg'];
 }
 
 $errmsg2 = $CACHE->read('wxappkferrmsg');
 if($errmsg2){
-	$arr = unserialize($errmsg2);
+	$arr = safe_unserialize($errmsg2, []);
 	$errmsg2 = $arr['time'].' - '.$arr['errmsg'];
 }
 

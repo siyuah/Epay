@@ -211,7 +211,8 @@ break;
 case 'batch_submit':
 	$type = isset($_POST['type'])?$_POST['type']:'alipay';
 	$out_biz_no = date("YmdHis").rand(11111,99999);
-	if(!isset($_POST['paypwd']) || $_POST['paypwd']!==$conf['admin_paypwd'])exit('{"code":-2,"msg":"支付密码错误"}');
+	if(!isset($_POST['paypwd']) || !verifyAdminPaypwd($_POST['paypwd']))exit('{"code":-2,"msg":"支付密码错误"}');
+	migrateStoredPasswordIfNeeded('admin_paypwd', $_POST['paypwd'], $conf['admin_paypwd']);
 	$payee_account = htmlspecialchars(trim($_POST['account']));
 	$payee_real_name = htmlspecialchars(trim($_POST['name']));
 	$money = trim($_POST['money']);

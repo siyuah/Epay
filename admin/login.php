@@ -34,7 +34,8 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     }
     $password = $plain;
   }
-  if($username == $conf['admin_user'] && $password == $conf['admin_pwd']){
+  if($username == $conf['admin_user'] && verifyStoredPassword($password, $conf['admin_pwd'])){
+    migrateStoredPasswordIfNeeded('admin_pwd', $password, $conf['admin_pwd']);
     if ($conf['totp_open'] == 1 && !empty($conf['totp_secret'])) {
       if (file_exists($login_limit_file)) {
           unlink($login_limit_file);
@@ -45,10 +46,10 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     if (file_exists($login_limit_file)) {
       unlink($login_limit_file);
     }
-		$session=md5($username.$password.$password_hash);
+		$session=getAdminSessionHash();
 		$expiretime=time() + 2592000;
 		$token=authcode("{$username}\t{$session}\t{$expiretime}", 'ENCODE', SYS_KEY);
-		setcookie("admin_token", $token, $expiretime, null, null, null, true);
+		setAdminTokenCookie($token, $expiretime);
     unset($_SESSION['vc_code']);
     exit(json_encode(['code'=>0]));
   }else{
@@ -80,14 +81,14 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     exit(json_encode(['code'=>-1,'msg'=>$e->getMessage()]));
   }
   $DB->insert('log', ['uid'=>0, 'type'=>'登录后台', 'date'=>'NOW()', 'ip'=>$clientip]);
-  $session=md5($conf['admin_user'].$conf['admin_pwd'].$password_hash);
+  $session=getAdminSessionHash();
   $expiretime=time() + 2592000;
   $token=authcode("{$conf['admin_user']}\t{$session}\t{$expiretime}", 'ENCODE', SYS_KEY);
-  setcookie("admin_token", $token, $expiretime, null, null, null, true);
+  setAdminTokenCookie($token, $expiretime);
   exit(json_encode(['code'=>0]));
 }elseif(isset($_GET['logout'])){
 	requireAdminCsrf(false);
-	setcookie("admin_token", "", time() - 2592000);
+	clearAdminTokenCookie();
 	exit("<script language='javascript'>window.location.href='./login.php';</script>");
 }elseif($islogin==1){
 	exit("<script language='javascript'>alert('您已登录！');window.location.href='./';</script>");

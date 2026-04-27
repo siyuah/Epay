@@ -64,7 +64,7 @@ class GcoinClient
             return $this->access_token;
         }
         $data = $CACHE->read('yyt_gcoin_token');
-        if($data) $result = unserialize($data);
+        if($data) $result = safe_unserialize($data, []);
         if(isset($result['access_token']) && isset($result['expires_in']) && $result['expires_in'] > time() + 200){
             $this->access_token = $result['access_token'];
             return $this->access_token;
