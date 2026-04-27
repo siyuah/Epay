@@ -10,7 +10,7 @@ if(!function_exists("imagecreate") || !file_exists('code.php'))$verifycode=0;
 include("../includes/common.php");
 
 if(isset($_GET['act']) && $_GET['act']=='login'){
-  if(!checkRefererHost())exit('{"code":403}');
+  requireAdminCsrf(true);
   $username = trim($_POST['username']);
   $password = trim($_POST['password']);
   $code = trim($_POST['code']);
@@ -65,7 +65,7 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
     }
   }
 }elseif(isset($_GET['act']) && $_GET['act']=='totp'){
-  if(!checkRefererHost())exit('{"code":403}');
+  requireAdminCsrf(true);
   $code = trim($_POST['code']);
   if (empty($code)) exit(json_encode(['code'=>-1,'msg'=>'请输入动态口令']));
   if ($conf['totp_open'] != 1 || empty($conf['totp_secret'])) {
@@ -86,7 +86,7 @@ if(isset($_GET['act']) && $_GET['act']=='login'){
   setcookie("admin_token", $token, $expiretime, null, null, null, true);
   exit(json_encode(['code'=>0]));
 }elseif(isset($_GET['logout'])){
-	if(!checkRefererHost())exit();
+	requireAdminCsrf(false);
 	setcookie("admin_token", "", time() - 2592000);
 	exit("<script language='javascript'>window.location.href='./login.php';</script>");
 }elseif($islogin==1){
@@ -121,6 +121,7 @@ include './head.php';
         <div class="panel-heading"><h3 class="panel-title">管理员登录</h3></div>
         <div class="panel-body">
           <form class="form-horizontal" id="login-form" role="form" onsubmit="return submitlogin()">
+            <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken()?>">
             <div class="input-group">
               <span class="input-group-addon"><span class="glyphicon glyphicon-user"></span></span>
               <input type="text" name="user" value="" class="form-control input-lg" placeholder="用户名" required="required"/>
@@ -146,6 +147,7 @@ include './head.php';
             </div>
           </form>
           <form class="form-horizontal" id="totp-form" onsubmit="return doTotp()" style="display:none;">
+            <input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken()?>">
             <div class="alert alert-info" role="alert">TOTP二次验证</div>
             <div class="input-group">
               <div class="input-group-addon"><span class="glyphicon glyphicon-lock" aria-hidden="true"></span></div>
@@ -187,6 +189,7 @@ function submitlogin(){
   var user = $("input[name='user']").val();
   var pass = $("input[name='pass']").val();
   var code = $("input[name='code']").val();
+  var csrfToken = $("#login-form input[name='csrf_token']").val();
   if(user=='' || pass==''){layer.alert('用户名或密码不能为空！');return false;}
   if(PUBLIC_KEY_PEM != ''){
     const enc = new JSEncrypt();
@@ -198,7 +201,7 @@ function submitlogin(){
   $.ajax({
     type : 'POST',
     url : '?act=login',
-    data: {username:user, password:pass, code:code, enc:enc_type},
+    data: {username:user, password:pass, code:code, enc:enc_type, csrf_token:csrfToken},
     dataType : 'json',
     success : function(data) {
       layer.close(ii);
@@ -226,12 +229,13 @@ function submitlogin(){
 }
 function doTotp(){
   var code = $("#totp_code").val();
+  var csrfToken = $("#totp-form input[name='csrf_token']").val();
   if(code.length != 6){
 		layer.msg('动态口令格式错误', {icon: 2});
 		return false;
 	}
 	var ii = layer.load(2, {shade:[0.1,'#fff']});
-	$.post('?act=totp', {code:code}, function(res){
+	$.post('?act=totp', {code:code, csrf_token:csrfToken}, function(res){
 		layer.close(ii);
 		if(res.code == 0){
 			layer.msg('登录成功，正在跳转', {icon: 1,shade: 0.01,time: 15000});

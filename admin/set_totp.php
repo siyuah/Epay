@@ -3,6 +3,7 @@ include("../includes/common.php");
 
 if(isset($_POST['action'])){
 	if(!$islogin) exit(json_encode(['code'=>-1, 'msg'=>'未登录']));
+	requireAdminCsrf(true);
 	if($_POST['action'] == 'generate'){
 		try {
 			$totp = \lib\TOTP::create();
@@ -115,7 +116,7 @@ var commonData = {secret:null,qrcode:null};
 function open_totp(){
 	if(!commonData.qrcode || !commonData.secret){
 		var ii = layer.load(2, {shade:[0.1,'#fff']});
-		$.post('?', {action:'generate'}, function(res){
+		$.post('?', {action:'generate', csrf_token:window.adminCsrfToken || ''}, function(res){
 			layer.close(ii);
 			if(res.code == 0){
 				commonData.secret = res.data.secret;
@@ -147,7 +148,7 @@ function bind_totp(){
 		return false;
 	}
 	var ii = layer.load(2, {shade:[0.1,'#fff']});
-	$.post('?', {action:'bind', secret:commonData.secret, code:code}, function(res){
+	$.post('?', {action:'bind', secret:commonData.secret, code:code, csrf_token:window.adminCsrfToken || ''}, function(res){
 		layer.close(ii);
 		if(res.code == 0){
 			layer.alert('TOTP绑定成功', {icon: 1}, function(){
@@ -164,7 +165,7 @@ function close_totp(){
 		btn: ['确定','取消']
 	}, function(){
 		var ii = layer.load(2, {shade:[0.1,'#fff']});
-		$.post('?', {action: 'close'}, function(res){
+		$.post('?', {action: 'close', csrf_token:window.adminCsrfToken || ''}, function(res){
 			layer.close(ii);
 			if(res.code == 0){
 				layer.alert('TOTP已关闭', {icon: 1}, function(){

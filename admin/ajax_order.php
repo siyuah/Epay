@@ -7,6 +7,42 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+requireAdminCsrfForActs($act, ['setStatus','operation','getmoney','refund','apirefund','freeze','unfreeze','notify','fillorder','alipaydSettle','alipayPreAuthPay','alipayUnfreeze','alipayRedPacketTansfer'], false);
+
+
+function appendOrderSearchSql($sql, $column, $value, $alias = 'A'){
+	$allowed = ['trade_no','out_trade_no','api_trade_no','uid','type','channel','subchannel','name','money','realmoney','getmoney','ip','domain','status','settle'];
+	if(!in_array($column, $allowed, true)) return $sql;
+	$prefix = $alias ? $alias.'.' : '';
+	if($column === 'name'){
+		$value = daddslashes($value);
+		return $sql." AND {$prefix}`{$column}` like '%{$value}%'";
+	}
+	if(in_array($column, ['money','realmoney','getmoney'], true) && strpos($value,'-') !== false){
+		$money = explode('-', $value, 2);
+		$min = is_numeric(trim($money[0])) ? trim($money[0]) : null;
+		$max = is_numeric(trim($money[1])) ? trim($money[1]) : null;
+		if($min !== null && $max !== null) return $sql." AND {$prefix}`{$column}`>='{$min}' AND {$prefix}`{$column}`<='{$max}'";
+		return $sql;
+	}
+	if(in_array($column, ['uid','type','channel','subchannel','status','settle'], true)){
+		$value = intval($value);
+	}else{
+		$value = daddslashes($value);
+	}
+	return $sql." AND {$prefix}`{$column}`='{$value}'";
+}
+
+function appendRiskSearchSql($sql, $column, $value){
+	$allowed = ['id','uid','type','content','date','status'];
+	if(!in_array($column, $allowed, true)) return $sql;
+	if(in_array($column, ['id','uid','type','status'], true)){
+		$value = intval($value);
+	}else{
+		$value = daddslashes($value);
+	}
+	return $sql." AND `{$column}`='{$value}'";
+}
 switch($act){
 case 'orderList':
 	$paytype = [];
@@ -56,16 +92,8 @@ case 'orderList':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='name'){
-			$sql.=" AND A.`{$_POST['column']}` like '%{$_POST['value']}%'";
-		}else{
-			if(($_POST['column'] == 'money' || $_POST['column'] == 'realmoney' || $_POST['column'] == 'getmoney') && strpos($_POST['value'],'-')){
-				$money = explode('-', $_POST['value']);
-				$sql.=" AND A.`{$_POST['column']}`>='{$money[0]}' AND A.`{$_POST['column']}`<='{$money[1]}'";
-			}else{
-				$sql.=" AND A.`{$_POST['column']}`='{$_POST['value']}'";
-			}
-		}
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendOrderSearchSql($sql, $column, $_POST['value']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
@@ -112,26 +140,18 @@ case 'statistics':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='name'){
-			$sql.=" AND A.`{$_POST['column']}` like '%{$_POST['value']}%'";
-		}else{
-			if(($_POST['column'] == 'money' || $_POST['column'] == 'realmoney' || $_POST['column'] == 'getmoney') && strpos($_POST['value'],'-')){
-				$money = explode('-', $_POST['value']);
-				$sql.=" AND A.`{$_POST['column']}`>='{$money[0]}' AND A.`{$_POST['column']}`<='{$money[1]}'";
-			}else{
-				$sql.=" AND A.`{$_POST['column']}`='{$_POST['value']}'";
-			}
-		}
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendOrderSearchSql($sql, $column, $_POST['value']);
 	}
     // 统计数据
-    $resultMoneyData = $DB->getRow("SELECT 
+    $resultMoneyData = $DB->getRow("SELECT
     SUM(money) AS totalMoney,
     SUM(CASE WHEN A.status = 1 THEN money ELSE 0 END) AS successMoney,
     SUM(CASE WHEN A.status = 0 THEN money ELSE 0 END) AS unpaidMoney,
     SUM(CASE WHEN A.status = 2 THEN refundmoney ELSE 0 END) AS refundMoney
     FROM pre_order A LEFT JOIN pre_channel B ON A.channel=B.id WHERE {$sql} order by trade_no desc");
 
-    $resultCount = $DB->getRow("SELECT 
+    $resultCount = $DB->getRow("SELECT
     COUNT(*) AS totalCount,
     SUM(CASE WHEN A.status = 1 THEN 1 ELSE 0 END) AS successCount,
     SUM(CASE WHEN A.status = 0 THEN 1 ELSE 0 END) AS unpaidCount,
@@ -159,7 +179,8 @@ break;
 case 'riskList':
 	$sql=" 1=1";
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendRiskSearchSql($sql, $column, $_POST['value']);
 	}
 	if(isset($_POST['type']) && $_POST['type']>-1) {
 		$type = intval($_POST['type']);
@@ -174,15 +195,15 @@ case 'riskList':
 break;
 
 case 'setStatus': //改变订单状态
-	$trade_no=trim($_GET['trade_no']);
-	$status=is_numeric($_GET['status'])?intval($_GET['status']):exit('{"code":200}');
+	$trade_no=trim($_REQUEST['trade_no']);
+	$status=is_numeric($_REQUEST['status'])?intval($_REQUEST['status']):exit('{"code":200}');
 	if($status==5){
-		if($DB->exec("DELETE FROM pre_order WHERE trade_no='$trade_no'"))
+		if($DB->exec("DELETE FROM pre_order WHERE trade_no=:trade_no", [':trade_no'=>$trade_no]))
 			exit('{"code":200}');
 		else
 			exit('{"code":400,"msg":"删除订单失败！['.$DB->error().']"}');
 	}else{
-		if($DB->exec("update pre_order set status='$status' where trade_no='$trade_no'")!==false)
+		if($DB->exec("update pre_order set status=:status where trade_no=:trade_no", [':status'=>$status, ':trade_no'=>$trade_no])!==false)
 			exit('{"code":200}');
 		else
 			exit('{"code":400,"msg":"修改订单失败！['.$DB->error().']"}');
@@ -190,7 +211,7 @@ case 'setStatus': //改变订单状态
 break;
 case 'order': //订单详情
 	$trade_no=trim($_GET['trade_no']);
-	$row=$DB->getRow("select A.*,B.showname typename,C.name channelname from pre_order A,pre_type B,pre_channel C where trade_no='$trade_no' and A.type=B.id and A.channel=C.id limit 1");
+	$row=$DB->getRow("select A.*,B.showname typename,C.name channelname from pre_order A,pre_type B,pre_channel C where trade_no=:trade_no and A.type=B.id and A.channel=C.id limit 1", [':trade_no'=>$trade_no]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在或未成功选择支付通道！"}');
 	$row['subchannelname'] = $row['subchannel'] > 0 ? $DB->findColumn('subchannel', 'name', ['id'=>$row['subchannel']]) : '';
@@ -210,14 +231,14 @@ case 'operation': //批量操作订单
 	$checkbox=$_POST['checkbox'];
 	$i=0;
 	foreach($checkbox as $trade_no){
-		if($status==4)$DB->exec("DELETE FROM pre_order WHERE trade_no='$trade_no'");
+		if($status==4)$DB->exec("DELETE FROM pre_order WHERE trade_no=:trade_no", [':trade_no'=>$trade_no]);
 		elseif($status==3){
 			\lib\Order::unfreeze($trade_no);
 		}
 		elseif($status==2){
 			\lib\Order::freeze($trade_no);
 		}
-		else $DB->exec("update pre_order set status='$status' where trade_no='$trade_no' limit 1");
+		else $DB->exec("update pre_order set status=:status where trade_no=:trade_no limit 1", [':status'=>$status, ':trade_no'=>$trade_no]);
 		$i++;
 	}
 	exit('{"code":0,"msg":"成功改变'.$i.'条订单状态"}');
@@ -248,7 +269,7 @@ case 'apirefund': //API退款操作
 	if(!is_numeric($money) || !preg_match('/^[0-9.]+$/', $money))exit('{"code":-1,"msg":"金额输入错误"}');
 	if($paypwd!=$conf['admin_paypwd'])
 		exit('{"code":-1,"msg":"支付密码输入错误！"}');
-	
+
 	$refund_no = date("YmdHis").rand(11111,99999);
 	$result = \lib\Order::refund($refund_no, $trade_no, $money, 1);
 	if($result['code'] == 0){
@@ -271,19 +292,19 @@ case 'unfreeze': //解冻订单
 break;
 case 'notify': //获取回调地址
 	$trade_no=trim($_POST['trade_no']);
-	$row=$DB->getRow("select * from pre_order where trade_no='$trade_no' limit 1");
+	$row=$DB->getRow("select * from pre_order where trade_no=:trade_no limit 1", [':trade_no'=>$trade_no]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	$url=creat_callback($row);
 	if($_POST['isget'] == 1){
 		if(do_notify($url['notify'])){
-			$DB->exec("UPDATE pre_order SET notify=0 WHERE trade_no='$trade_no'");
+			$DB->exec("UPDATE pre_order SET notify=0 WHERE trade_no=:trade_no", [':trade_no'=>$trade_no]);
 			exit('{"code":0}');
 		}
 		exit('{"code":-1}');
 	}
 	if($row['notify']>0)
-		$DB->exec("update pre_order set notify=0,notifytime=NULL where trade_no='$trade_no'");
+		$DB->exec("update pre_order set notify=0,notifytime=NULL where trade_no=:trade_no", [':trade_no'=>$trade_no]);
 	exit('{"code":0,"url":"'.($_POST['isreturn']==1?$url['return']:$url['notify']).'"}');
 break;
 case 'fillorder': //手动补单
@@ -292,8 +313,8 @@ case 'fillorder': //手动补单
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	if($row['status']>0)exit('{"code":-1,"msg":"当前订单不是未完成状态！"}');
-	if($DB->exec("update `pre_order` set `status` ='1' where `trade_no`='$trade_no'")){
-		$DB->exec("update `pre_order` set `endtime` ='$date',`date` =NOW() where `trade_no`='$trade_no'");
+	if($DB->exec("update `pre_order` set `status` ='1' where `trade_no`=:trade_no", [':trade_no'=>$trade_no])){
+		$DB->exec("update `pre_order` set `endtime` =:endtime,`date` =NOW() where `trade_no`=:trade_no", [':endtime'=>$date, ':trade_no'=>$trade_no]);
 		$channel=\lib\Channel::get($row['channel']);
 		processOrder($row);
 	}
@@ -301,7 +322,7 @@ case 'fillorder': //手动补单
 break;
 case 'alipaydSettle': //支付宝直付通确认结算
 	$trade_no=trim($_POST['trade_no']);
-	$row=$DB->getRow("select * from pre_order where trade_no='$trade_no' limit 1");
+	$row=$DB->getRow("select * from pre_order where trade_no=:trade_no limit 1", [':trade_no'=>$trade_no]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	if($row['status']==0)exit('{"code":-1,"msg":"当前订单状态是未支付"}');
@@ -317,16 +338,16 @@ case 'alipaydSettle': //支付宝直付通确认结算
 		}else{
 			exit('{"code":-1,"msg":"支付插件不支持该操作"}');
 		}
-		$DB->exec("update `pre_order` set `settle`=2 where `trade_no`='$trade_no'");
+		$DB->exec("update `pre_order` set `settle`=2 where `trade_no`=:trade_no", [':trade_no'=>$trade_no]);
 		exit('{"code":0,"msg":"结算成功！"}');
 	}catch(Exception $e){
-		$DB->exec("update `pre_order` set `settle`=3 where `trade_no`='$trade_no'");
+		$DB->exec("update `pre_order` set `settle`=3 where `trade_no`=:trade_no", [':trade_no'=>$trade_no]);
 		exit('{"code":-1,"msg":"结算失败,'.$e->getMessage().'"}');
 	}
 break;
 case 'alipayPreAuthPay': //支付宝授权资金支付
 	$trade_no=trim($_POST['trade_no']);
-	$order=$DB->getRow("select * from pre_order where trade_no='$trade_no' limit 1");
+	$order=$DB->getRow("select * from pre_order where trade_no=:trade_no limit 1", [':trade_no'=>$trade_no]);
 	if(!$order)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	$channel = $order['subchannel'] > 0 ? \lib\Channel::getSub($order['subchannel']) : \lib\Channel::get($order['channel'], $DB->findColumn('user', 'channelinfo', ['uid'=>$row['uid']]));
@@ -349,7 +370,7 @@ case 'alipayPreAuthPay': //支付宝授权资金支付
 break;
 case 'alipayUnfreeze': //支付宝授权资金解冻
 	$trade_no=trim($_POST['trade_no']);
-	$order=$DB->getRow("select * from pre_order where trade_no='$trade_no' limit 1");
+	$order=$DB->getRow("select * from pre_order where trade_no=:trade_no limit 1", [':trade_no'=>$trade_no]);
 	if(!$order)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	$channel = $order['subchannel'] > 0 ? \lib\Channel::getSub($order['subchannel']) : \lib\Channel::get($order['channel'], $DB->findColumn('user', 'channelinfo', ['uid'=>$row['uid']]));
@@ -358,7 +379,7 @@ case 'alipayUnfreeze': //支付宝授权资金解冻
 	}
 	try{
 		\lib\Payment::alipayUnfreeze($channel, $order);
-		$DB->exec("update `pre_order` set `status`=0 where `trade_no`='$trade_no'");
+		$DB->exec("update `pre_order` set `status`=0 where `trade_no`=:trade_no", [':trade_no'=>$trade_no]);
 		exit('{"code":0,"msg":"授权资金解冻成功！"}');
 	}catch(Exception $e){
 		$errmsg = $e->getMessage();
@@ -367,7 +388,7 @@ case 'alipayUnfreeze': //支付宝授权资金解冻
 break;
 case 'alipayRedPacketTansfer': //支付宝红包转账重试
 	$trade_no=trim($_POST['trade_no']);
-	$order=$DB->getRow("select * from pre_order where trade_no='$trade_no' limit 1");
+	$order=$DB->getRow("select * from pre_order where trade_no=:trade_no limit 1", [':trade_no'=>$trade_no]);
 	if(!$order)
 		exit('{"code":-1,"msg":"当前订单不存在！"}');
 	$channel = $order['subchannel'] > 0 ? \lib\Channel::getSub($order['subchannel']) : \lib\Channel::get($order['channel'], $DB->findColumn('user', 'channelinfo', ['uid'=>$row['uid']]));
@@ -379,7 +400,7 @@ case 'alipayRedPacketTansfer': //支付宝红包转账重试
 	if(!$payee_user_id) exit('{"code":-1,"msg":"当前商户未绑定支付宝账号"}');
 	try{
 		\lib\Payment::alipayRedPacketTransfer($channel, $payee_user_id, $order['money'], $order['api_trade_no']);
-		$DB->exec("update `pre_order` set `settle`=2 where `trade_no`='$trade_no'");
+		$DB->exec("update `pre_order` set `settle`=2 where `trade_no`=:trade_no", [':trade_no'=>$trade_no]);
 		exit('{"code":0,"msg":"红包打款成功！"}');
 	}catch(Exception $e){
 		$errmsg = $e->getMessage();

@@ -39,6 +39,7 @@ if(empty($conf['wxappkf_token'])) $conf['wxappkf_token'] = getSid();
 <div class="panel-body">
 <?php if($errmsg){?><div class="alert alert-warning">回调接口上一次报错信息：<?php echo $errmsg;?></div><?php }?>
   <form onsubmit="return saveSetting(this)" method="post" class="form-horizontal" role="form">
+	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 	<div class="form-group">
 	  <label class="col-sm-3 control-label">回调URL</label>
 	  <div class="col-sm-9"><input type="text" value="<?php echo $callback_url; ?>" class="form-control" readonly/></div>
@@ -88,6 +89,7 @@ if(empty($conf['wxappkf_token'])) $conf['wxappkf_token'] = getSid();
 <div class="panel-body">
 <?php if($errmsg2){?><div class="alert alert-warning">回调接口上一次报错信息：<?php echo $errmsg2;?></div><?php }?>
   <form onsubmit="return saveSetting(this)" method="post" class="form-horizontal" role="form">
+	<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 	<div class="form-group">
 	  <label class="col-sm-3 control-label">回调URL</label>
 	  <div class="col-sm-9"><input type="text" value="<?php echo $callback_url2; ?>" class="form-control" readonly/></div>

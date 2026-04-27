@@ -14,7 +14,7 @@ if($islogin==1){}else exit("<script language='javascript'>window.location.href='
 $my=isset($_GET['my'])?$_GET['my']:null;
 if($my=='edit'){
 	$id=intval($_GET['id']);
-	$rows=$DB->getRow("select * from pre_anounce where id='$id' limit 1");
+	$rows=$DB->getRow("select * from pre_anounce where id=:id limit 1", [':id'=>$id]);
 	if(!$rows)
 		showmsg('当前公告不存在！',3);
 ?>
@@ -22,6 +22,7 @@ if($my=='edit'){
 <div class="panel-heading"><h3 class="panel-title">修改公告(ID:<?php echo $id?>)</h3></div>
 <div class="panel-body">
 	<form action="./gonggao.php?my=edit_submit&id=<?php echo $id?>" role="form" class="form-horizontal" method="post">
+		<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 		<div class="list-group-item">
 			<div class="input-group">
 				<div class="input-group-addon">公告内容</div>
@@ -47,13 +48,14 @@ if($my=='edit'){
 <?php
 }
 elseif($my=='add_submit'){
+requireAdminCsrf(true);
 $content=$_POST['content'];
 $sort=intval($_POST['sort']);
 $color=trim($_POST['color']);
 if(!$content || !$sort){
 showmsg('公告内容不能为空',3);
 } else {
-$sds=$DB->exec("INSERT INTO `pre_anounce` (`content`, `color`, `sort`, `addtime`, `status`) VALUES ('{$content}', '{$color}', '{$sort}', '{$date}', 1)");
+$sds=$DB->exec("INSERT INTO `pre_anounce` (`content`, `color`, `sort`, `addtime`, `status`) VALUES (:content, :color, :sort, :addtime, 1)", [':content'=>$content, ':color'=>$color, ':sort'=>$sort, ':addtime'=>$date]);
 if($sds){
 	showmsg('添加公告成功！<br/><br/><a href="./gonggao.php">>>返回公告列表</a>',1);
 }else
@@ -61,8 +63,9 @@ if($sds){
 }
 }
 elseif($my=='edit_submit'){
+requireAdminCsrf(true);
 $id=intval($_GET['id']);
-$rows=$DB->getRow("select * from pre_anounce where id='$id' limit 1");
+$rows=$DB->getRow("select * from pre_anounce where id=:id limit 1", [':id'=>$id]);
 if(!$rows)
 	showmsg('当前公告不存在！',3);
 $content=$_POST['content'];
@@ -71,7 +74,7 @@ $color=trim($_POST['color']);
 if(!$content || !$sort){
 showmsg('公告内容不能为空',3);
 } else {
-$sds=$DB->exec("UPDATE `pre_anounce` SET `content`='$content',`sort`='$sort',`color`='$color' WHERE `id`='$id'");
+$sds=$DB->exec("UPDATE `pre_anounce` SET `content`=:content,`sort`=:sort,`color`=:color WHERE `id`=:id", [':content'=>$content, ':sort'=>$sort, ':color'=>$color, ':id'=>$id]);
 if($sds!==false){
 	showmsg('修改公告成功！<br/><br/><a href="./gonggao.php">>>返回公告列表</a>',1);
 }else
@@ -84,6 +87,7 @@ $list = $DB->getAll("SELECT * FROM pre_anounce ORDER BY sort ASC");
 <div class="panel-heading"><h3 class="panel-title">添加公告</h3></div>
 <div class="panel-body">
 	<form action="./gonggao.php?my=add_submit" role="form" class="form-horizontal" method="post">
+		<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 		<div class="list-group-item">
 			<div class="input-group">
 				<div class="input-group-addon">公告内容</div>
@@ -126,7 +130,7 @@ $list = $DB->getAll("SELECT * FROM pre_anounce ORDER BY sort ASC");
 function setStatus(id,status) {
 	$.ajax({
 		type : 'GET',
-		url : 'ajax.php?act=setGonggao&id='+id+'&status='+status,
+		url : 'ajax.php?act=setGonggao&id='+id+'&status='+status+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -147,7 +151,7 @@ function delItem(id) {
 	}, function(){
 		$.ajax({
 			type : 'GET',
-			url : 'ajax.php?act=delGonggao&id='+id,
+			url : 'ajax.php?act=delGonggao&id='+id+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 			dataType : 'json',
 			success : function(data) {
 				if(data.code == 0){

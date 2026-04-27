@@ -36,6 +36,7 @@ $list = $DB->getAll("SELECT * FROM pre_roll ORDER BY id ASC");
 			</div>
 			<div class="modal-body">
 				<form class="form-horizontal" id="form-store">
+					<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 					<input type="hidden" name="action" id="action"/>
 					<input type="hidden" name="id" id="id"/>
 					<div class="form-group">
@@ -189,7 +190,7 @@ function delItem(id) {
 	}, function(){
 	  $.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=delRoll&id='+id,
+		url : 'ajax_pay.php?act=delRoll&id='+id+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -210,7 +211,7 @@ function delItem(id) {
 function setStatus(id,status) {
 	$.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=setRoll&id='+id+'&status='+status,
+		url : 'ajax_pay.php?act=setRoll&id='+id+'&status='+status+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -238,7 +239,7 @@ function editInfo(id){
 				$.each(data.channels, function (i, res) {
 					$("#channel").append('<option value="'+res.id+'">'+res.name+'</option>');
 				})
-				var item = '<div class="modal-body"><form class="form" id="form-info"><dl class="fieldlist" data-name="list" data-listidx="0">';
+				var item = '<div class="modal-body"><form class="form" id="form-info"><input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>"><dl class="fieldlist" data-name="list" data-listidx="0">';
 				item += '</dl><button type="button" id="save" onclick="saveInfo('+id+')" class="btn btn-primary btn-block">保存</button><br/>备注:顺序轮询设置权重值无效</form></div>';
 				var area = [$(window).width() > 520 ? '520px' : '100%', '480px'];
 				layer.open({

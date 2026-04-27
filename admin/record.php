@@ -147,7 +147,7 @@ function delItem(id) {
 	}, function(){
 	  $.ajax({
 		type : 'GET',
-		url : 'ajax_user.php?act=delRecord&id='+id,
+		url : 'ajax_user.php?act=delRecord&id='+encodeURIComponent(id)+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){

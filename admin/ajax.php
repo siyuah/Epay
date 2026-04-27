@@ -5,6 +5,8 @@ $act=isset($_GET['act'])?daddslashes($_GET['act']):null;
 
 if(!checkRefererHost())exit('{"code":403}');
 
+requireAdminCsrfForActs($act, ['set', 'setGonggao', 'delGonggao', 'setArticle', 'article_upload', 'testproxy', 'generate_wxa_link'], false);
+
 @header('Content-Type: application/json; charset=UTF-8');
 
 switch($act){
@@ -22,7 +24,7 @@ case 'getcount':
 		\lib\Plugin::updateAll();
 	}
 
-	$orderrow=$DB->getRow("SELECT COUNT(*) allnum,COUNT(IF(status>0, 1, NULL)) sucnum FROM pre_order WHERE addtime>='$thtime'");
+	$orderrow=$DB->getRow("SELECT COUNT(*) allnum,COUNT(IF(status>0, 1, NULL)) sucnum FROM pre_order WHERE addtime>=:thtime", [':thtime'=>$thtime]);
 	$success_rate = 100;
 	if($orderrow){
 		if($orderrow['allnum'] > 0){
@@ -54,7 +56,7 @@ case 'getcount':
 		$settlemoney=$DB->getColumn("SELECT SUM(money) FROM pre_settle");
 
 		$today=date("Y-m-d");
-		$rs=$DB->query("SELECT type,channel,realmoney,profitmoney from pre_order where (status=1 OR status=3) and date>='$today'");
+		$rs=$DB->query("SELECT type,channel,realmoney,profitmoney from pre_order where (status=1 OR status=3) and date>=:today", [':today'=>$today]);
 		foreach($paytype as $id=>$type){
 			$order_paytype[$id]=0;
 			$profit_paytype[$id]=0;
@@ -87,7 +89,7 @@ case 'getcount':
 		foreach($profit_paytype as $money){
 			$allprofit+=$money;
 		}
-	
+
 		$order_today['all']=round($allmoney,2);
 		$order_today['profit_all']=round($allprofit,2);
 		$order_today['paytype']=$order_paytype;
@@ -130,14 +132,14 @@ break;
 case 'setGonggao':
 	$id=intval($_GET['id']);
 	$status=intval($_GET['status']);
-	$sql = "UPDATE pre_anounce SET status='$status' WHERE id='$id'";
-	if($DB->exec($sql))exit('{"code":0,"msg":"修改状态成功！"}');
+	$sql = "UPDATE pre_anounce SET status=:status WHERE id=:id";
+	if($DB->exec($sql, [':status'=>$status, ':id'=>$id]))exit('{"code":0,"msg":"修改状态成功！"}');
 	else exit('{"code":-1,"msg":"修改状态失败['.$DB->error().']"}');
 break;
 case 'delGonggao':
 	$id=intval($_GET['id']);
-	$sql = "DELETE FROM pre_anounce WHERE id='$id'";
-	if($DB->exec($sql))exit('{"code":0,"msg":"删除公告成功！"}');
+	$sql = "DELETE FROM pre_anounce WHERE id=:id";
+	if($DB->exec($sql, [':id'=>$id]))exit('{"code":0,"msg":"删除公告成功！"}');
 	else exit('{"code":-1,"msg":"删除公告失败['.$DB->error().']"}');
 break;
 case 'iptype':
@@ -152,7 +154,7 @@ break;
 case 'setArticle': //文章状态
 	$id=intval($_GET['id']);
 	$active=intval($_GET['active']);
-	$DB->exec("update pre_article set active='$active' where id='{$id}'");
+	$DB->exec("update pre_article set active=:active where id=:id", [':active'=>$active, ':id'=>$id]);
 	exit('{"code":0,"msg":"succ"}');
 break;
 case 'article_upload':
@@ -162,12 +164,21 @@ case 'article_upload':
 	$temp_arr = explode(".", $file_name);
 	$file_ext = array_pop($temp_arr);
 	$file_ext = strtolower(trim($file_ext));
-	if (in_array($file_ext, array('gif', 'jpg', 'jpeg', 'png', 'bmp', 'webp')) === false) {
+	$allow_ext = array('gif', 'jpg', 'jpeg', 'png', 'bmp', 'webp');
+	if (in_array($file_ext, $allow_ext) === false) {
 		exit('{"error":1,"message":"上传文件扩展名是不允许的扩展名。"}');
+	}
+	if(!is_uploaded_file($tmp_name)){
+		exit('{"error":1,"message":"非法上传文件。"}');
+	}
+	$image_info = @getimagesize($tmp_name);
+	$allow_mime = array('image/gif', 'image/jpeg', 'image/png', 'image/bmp', 'image/webp');
+	if(!$image_info || !isset($image_info['mime']) || !in_array($image_info['mime'], $allow_mime, true)){
+		exit('{"error":1,"message":"上传文件不是有效图片。"}');
 	}
 	$filename = md5_file($tmp_name).'.'.$file_ext;
 	$fileurl = '/assets/img/article/'.$filename;
-	if(copy($tmp_name, ROOT.'assets/img/article/'.$filename)){
+	if(move_uploaded_file($tmp_name, ROOT.'assets/img/article/'.$filename)){
 		exit('{"error":0,"url":"'.$fileurl.'"}');
 	}else{
 		exit('{"error":1,"message":"上传失败，请确保有本地写入权限"}');

@@ -13,6 +13,7 @@ if($islogin==1){}else exit("<script language='javascript'>window.location.href='
       </div>
       <div class="modal-body">
       <form action="invitecode.php?my=add" method="POST">
+<input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken(); ?>">
 <input type="text" class="form-control" name="num" placeholder="生成的个数" required><br/>
 <input type="submit" class="btn btn-primary btn-block" value="生成"></form>
 </div>
@@ -39,13 +40,14 @@ function getkm($len = 18)
 $my=isset($_GET['my'])?$_GET['my']:null;
 
 if($my=='add'){
+requireAdminCsrf(true);
 $kind=1;
-$num=intval($_POST['num']);
+$num=max(1, min(200, intval($_POST['num'])));
 $value=intval($_POST['value']);
 echo "<ul class='list-group'><li class='list-group-item active'>成功生成以下邀请码</li>";
 for ($i = 0; $i < $num; $i++) {
 	$km=random(8);
-	$sql=$DB->query("insert into `pre_invitecode` (`code`,`addtime`,`status`) values ('".$km."',NOW(),0)");
+	$sql=$DB->exec("insert into `pre_invitecode` (`code`,`addtime`,`status`) values (:code,NOW(),0)", [':code'=>$km]);
 	if($sql) {
 		echo "<li class='list-group-item'>$km</li>";
 	}
@@ -58,26 +60,27 @@ elseif($my=='del'){
 echo '<div class="panel panel-primary">
 <div class="panel-heading w h"><h3 class="panel-title">删除邀请码</h3></div>
 <div class="panel-body box">';
-$id=$_GET['id'];
-$sql=$DB->query("DELETE FROM pre_invitecode WHERE id='$id'");
+requireAdminCsrf(false);
+$id=intval($_GET['id']);
+$sql=$DB->exec("DELETE FROM pre_invitecode WHERE id=:id", [':id'=>$id]);
 if($sql){echo '删除成功！';}
 else{echo '删除失败！';}
 echo '<hr/><a href="./invitecode.php">>>返回邀请码列表</a></div></div>';
 }
 
 elseif($my=='qk'){//清空邀请码
-if(!checkRefererHost())exit();
+requireAdminCsrf(false);
 echo '<div class="panel panel-primary">
 <div class="panel-heading w h"><h3 class="panel-title">清空邀请码</h3></div>
 <div class="panel-body box">
-您确认要清空所有邀请码吗？清空后无法恢复！<br><a href="./invitecode.php?my=qk2">确认</a> | <a href="javascript:history.back();">返回</a></div></div>';
+您确认要清空所有邀请码吗？清空后无法恢复！<br><a href="./invitecode.php?my=qk2&csrf_token='.getAdminCsrfToken().'">确认</a> | <a href="javascript:history.back();">返回</a></div></div>';
 }
 elseif($my=='qk2'){//清空邀请码结果
-if(!checkRefererHost())exit();
+requireAdminCsrf(false);
 echo '<div class="panel panel-primary">
 <div class="panel-heading w h"><h3 class="panel-title">清空邀请码</h3></div>
 <div class="panel-body box">';
-if($DB->query("DELETE FROM pre_invitecode WHERE 1")==true){
+if($DB->exec("DELETE FROM pre_invitecode WHERE 1")!==false){
 echo '<div class="box">清空成功.</div>';
 }else{
 echo'<div class="box">清空失败.</div>';
@@ -85,14 +88,14 @@ echo'<div class="box">清空失败.</div>';
 echo '<hr/><a href="./invitecode.php">>>返回邀请码列表</a></div></div>';
 }
 elseif($my=='qkuse'){//清空已使用邀请码
-if(!checkRefererHost())exit();
+requireAdminCsrf(false);
 echo '<div class="panel panel-primary">
 <div class="panel-heading w h"><h3 class="panel-title">清空邀请码</h3></div>
 <div class="panel-body box">
-您确认要清空所有邀请码吗？清空后无法恢复！<br><a href="./invitecode.php?my=qkuse2">确认</a> | <a href="javascript:history.back();">返回</a></div></div>';
+您确认要清空所有邀请码吗？清空后无法恢复！<br><a href="./invitecode.php?my=qkuse2&csrf_token='.getAdminCsrfToken().'">确认</a> | <a href="javascript:history.back();">返回</a></div></div>';
 }
 elseif($my=='qkuse2'){//清空已使用邀请码结果
-if(!checkRefererHost())exit();
+requireAdminCsrf(false);
 echo '<div class="panel panel-primary">
 <div class="panel-heading w h"><h3 class="panel-title">清空邀请码</h3></div>
 <div class="panel-body box">';
@@ -112,19 +115,22 @@ echo '<form action="invitecode.php" method="GET" class="form-inline">
     <input type="text" class="form-control" name="kw" placeholder="邀请码" required>
   </div>
   <button type="submit" class="btn btn-primary">搜索</button>
-  <a href="invitecode.php?my=qk" class="btn btn-danger">清空</a>
-  <a href="invitecode.php?my=qkuse" class="btn btn-danger">清空已使用</a>
+  <a href="invitecode.php?my=qk&csrf_token='.getAdminCsrfToken().'" class="btn btn-danger">清空</a>
+  <a href="invitecode.php?my=qkuse&csrf_token='.getAdminCsrfToken().'" class="btn btn-danger">清空已使用</a>
   <a href="#" data-toggle="modal" data-target="#search" id="search" class="btn btn-success">生成</a>
 </form>';
 
 if(isset($_GET['kw'])) {
-	$sql=" `code`='{$_GET['kw']}'";
+	$kw = trim($_GET['kw']);
+	$sql=" `code`=".$DB->quote($kw);
 	$numrows=$DB->getColumn("SELECT count(*) from pre_invitecode WHERE{$sql}");
-	$con='包含 '.$_GET['kw'].' 的共有 <b>'.$numrows.'</b> 个邀请码';
+	$con='包含 '.htmlspecialchars($kw, ENT_QUOTES, 'UTF-8').' 的共有 <b>'.$numrows.'</b> 个邀请码';
+	$link='&kw='.urlencode($kw);
 }else{
 	$numrows=$DB->getColumn("SELECT count(*) from pre_invitecode WHERE 1");
 	$sql=" 1";
 	$con='系统共有 <b>'.$numrows.'</b> 个邀请码';
+	$link='';
 }
 echo $con;
 ?>
@@ -141,7 +147,7 @@ $offset=$pagesize*($page - 1);
 $rs=$DB->query("SELECT * FROM pre_invitecode WHERE{$sql} order by id desc limit $offset,$pagesize");
 while($res = $rs->fetch())
 {
-echo '<tr><td><b>'.$res['code'].'</b></td><td>'.($res['status']==1?'<font color="red">已使用</font>':'<font color="green">未使用</font>').'</td><td>'.$res['addtime'].'</td><td>'.$res['usetime'].'</td><td><a href="./ulist.php?column=uid&value='.$res['uid'].'" target="_blank">'.$res['uid'].'</a></td><td><a href="./invitecode.php?my=del&id='.$res['id'].'" class="btn btn-xs btn-danger" onclick="return confirm(\'你确实要删除此邀请码吗？\');">删除</a></td></tr>';
+echo '<tr><td><b>'.htmlspecialchars($res['code'], ENT_QUOTES, 'UTF-8').'</b></td><td>'.($res['status']==1?'<font color="red">已使用</font>':'<font color="green">未使用</font>').'</td><td>'.htmlspecialchars($res['addtime'], ENT_QUOTES, 'UTF-8').'</td><td>'.htmlspecialchars($res['usetime'], ENT_QUOTES, 'UTF-8').'</td><td><a href="./ulist.php?column=uid&value='.intval($res['uid']).'" target="_blank">'.intval($res['uid']).'</a></td><td><a href="./invitecode.php?my=del&id='.intval($res['id']).'&csrf_token='.getAdminCsrfToken().'" class="btn btn-xs btn-danger" onclick="return confirm(\'你确实要删除此邀请码吗？\');">删除</a></td></tr>';
 }
 ?>
           </tbody>

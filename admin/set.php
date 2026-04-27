@@ -192,7 +192,7 @@ $("select[name='homepage']").change(function(){
 </script>
 <?php
 }elseif($mod=='paypwd_n' && $_POST['do']=='submit'){
-	if(!checkRefererHost())exit;
+	requireAdminCsrf(true);
 	$oldpwd=trim($_POST['oldpwd']);
 	$newpwd=trim($_POST['newpwd']);
 	$newpwd2=trim($_POST['newpwd2']);
@@ -209,7 +209,7 @@ $("select[name='homepage']").change(function(){
 	if($ad)showmsg('修改成功！',1);
 	else showmsg('修改失败！<br/>'.$DB->error(),4);
 }elseif($mod=='account_n' && $_POST['do']=='submit'){
-	if(!checkRefererHost())exit;
+	requireAdminCsrf(true);
 	$user=trim($_POST['user']);
 	$oldpwd=trim($_POST['oldpwd']);
 	$newpwd=trim($_POST['newpwd']);
@@ -229,7 +229,7 @@ $("select[name='homepage']").change(function(){
 <div class="panel panel-primary">
 <div class="panel-heading"><h3 class="panel-title">管理员账号配置</h3></div>
 <div class="panel-body">
-  <form action="./set.php?mod=account_n" method="post" class="form-horizontal" role="form"><input type="hidden" name="do" value="submit"/>
+  <form action="./set.php?mod=account_n" method="post" class="form-horizontal" role="form"><input type="hidden" name="do" value="submit"/><input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>"/>
 	<div class="form-group">
 	  <label class="col-sm-2 control-label">用户名</label>
 	  <div class="col-sm-10"><input type="text" name="user" value="<?php echo $conf['admin_user']; ?>" class="form-control" required/></div>
@@ -256,7 +256,7 @@ $("select[name='homepage']").change(function(){
 <div class="panel panel-primary">
 <div class="panel-heading"><h3 class="panel-title">支付密码修改</h3></div>
 <div class="panel-body">
-  <form action="./set.php?mod=paypwd_n" method="post" class="form-horizontal" role="form"><input type="hidden" name="do" value="submit"/>
+  <form action="./set.php?mod=paypwd_n" method="post" class="form-horizontal" role="form"><input type="hidden" name="do" value="submit"/><input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>"/>
 	<div class="form-group">
 	  <label class="col-sm-2 control-label">旧密码</label>
 	  <div class="col-sm-10"><input type="password" name="oldpwd" value="" class="form-control" placeholder="请输入当前的支付密码"/></div>
@@ -758,7 +758,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_channel" default="<?php echo $conf['auto_check_channel']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-4"><div class="input-group"><input type="text" name="check_channel_second" value="<?php echo $conf['check_channel_second']; ?>" class="form-control" placeholder="检测多少秒内"/><span class="input-group-addon">秒</span></div></div>
 	  <div class="col-sm-5"><div class="input-group"><input type="text" name="check_channel_failcount" value="<?php echo $conf['check_channel_failcount']; ?>" class="form-control" placeholder="连续未支付订单数量"/><span class="input-group-addon">个订单</span></div></div>
@@ -773,7 +773,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_sucrate" default="<?php echo $conf['auto_check_sucrate']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-4"><div class="input-group"><input type="text" name="check_sucrate_second" value="<?php echo $conf['check_sucrate_second']; ?>" class="form-control" placeholder="检测多少秒内"/><span class="input-group-addon">秒</span></div></div>
 	  <div class="col-sm-5"><div class="input-group"><input type="text" name="check_sucrate_count" value="<?php echo $conf['check_sucrate_count']; ?>" class="form-control" placeholder="超过多少个订单时"/><span class="input-group-addon">个订单</span></div></div>
@@ -788,7 +788,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_notify" default="<?php echo $conf['auto_check_notify']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-9"><div class="input-group"><input type="text" name="check_notify_count" value="<?php echo $conf['check_notify_count']; ?>" class="form-control" placeholder="连续回调失败订单数量"/><span class="input-group-addon">个订单</span></div></div>
 	</div><br/>
@@ -801,7 +801,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_complain" default="<?php echo $conf['auto_check_complain']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-9"><div class="input-group"><input type="text" name="check_complain_rate" value="<?php echo $conf['check_complain_rate']; ?>" class="form-control" placeholder="7天内投诉率高于多少时，填写1~100的数字"/><span class="input-group-addon">%</span></div></div>
 	</div><br/>
@@ -814,7 +814,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_payip" default="<?php echo $conf['auto_check_payip']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-4"><div class="input-group"><input type="text" name="check_payip_second" value="<?php echo $conf['check_payip_second']; ?>" class="form-control" placeholder="单个IP连续多少秒内"/><span class="input-group-addon">秒</span></div></div>
 	  <div class="col-sm-5"><div class="input-group"><input type="text" name="check_payip_count" value="<?php echo $conf['check_payip_count']; ?>" class="form-control" placeholder="超过多少个未支付订单时"/><span class="input-group-addon">个订单</span></div></div>
@@ -824,7 +824,7 @@ $wxpay_channel = $DB->getAll("SELECT * FROM pre_weixin WHERE type=0");
 	  <label class="col-sm-3 control-label">功能开关</label>
 	  <div class="col-sm-9"><select class="form-control" name="auto_check_payspeed" default="<?php echo $conf['auto_check_payspeed']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <label class="col-sm-3 control-label">参数设置</label>
 	  <div class="col-sm-4"><div class="input-group"><input type="text" name="check_payspeed_second" value="<?php echo $conf['check_payspeed_second']; ?>" class="form-control" placeholder="单个支付账号多少秒内"/><span class="input-group-addon">秒</span></div></div>
 	  <div class="col-sm-5"><div class="input-group"><input type="text" name="check_payspeed_count" value="<?php echo $conf['check_payspeed_count']; ?>" class="form-control" placeholder="成功支付订单数量"/><span class="input-group-addon">个订单</span></div></div>
@@ -1731,7 +1731,7 @@ if($errmsg2){
 	  <label class="col-sm-3 control-label">用户组到期提醒</label>
 	  <div class="col-sm-9"><select class="form-control" name="msgconfig_group" default="<?php echo $conf['msgconfig_group']?>"><option value="0">关闭</option><option value="1">开启</option></select></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
 	 </div><br/>
 	</div>
@@ -1766,7 +1766,7 @@ if($errmsg3){
 	  <label class="col-sm-3 control-label">云喇叭agent_secret</label>
 	  <div class="col-sm-9"><input type="text" name="voice_apikey" value="<?php echo $conf['voice_apikey']; ?>" class="form-control"/></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
 	 </div><br/>
 	</div>
@@ -1801,7 +1801,7 @@ if($errmsg4){
 	  <label class="col-sm-3 control-label">APPSECRET</label>
 	  <div class="col-sm-9"><input type="text" name="print_appsecret" value="<?php echo $conf['print_appsecret']; ?>" class="form-control"/></div>
 	</div><br/>
-  	<div class="form-group">
+	<div class="form-group">
 	  <div class="col-sm-offset-3 col-sm-9"><input type="submit" name="submit" value="修改" class="btn btn-primary form-control"/><br/>
 	 </div><br/>
 	</div>
@@ -1922,7 +1922,7 @@ elseif($mod=='proxy'){
 <span class="glyphicon glyphicon-info-sign"></span>
 本功能开启后，在支付成功异步回调的时候，使用中转代理访问商户网站，可解决一些只能国内访问的网站回调问题，也可以防止本站服务器IP泄露。<br/>
 <li>代理服务器可以使用Windows服务器+CCProxy软件搭建</li>
-<li>代理API可<a href="download.php?act=proxyapi&apikey=<?php echo $conf['proxy_apikey']?>">下载代理API源码</a>，自行搭建代理API站点对接使用。若修改API接口密钥，则需要重新下载！</li>
+<li>代理API可<a href="download.php?act=proxyapi&apikey=<?php echo urlencode($conf['proxy_apikey'])?>&csrf_token=<?php echo urlencode(getAdminCsrfToken())?>">下载代理API源码</a>，自行搭建代理API站点对接使用。若修改API接口密钥，则需要重新下载！</li>
 </div>
 </div>
 <script>
@@ -1941,14 +1941,19 @@ echo '<div class="panel panel-primary">
 <div class="panel-heading"><h3 class="panel-title">更改首页LOGO</h3></div>
 <div class="panel-body">';
 if($_POST['s']==1){
-if(!checkRefererHost())exit;
-if(copy($_FILES['file']['tmp_name'], ROOT.'assets/img/logo.png')){
+requireAdminCsrf(true);
+$tmp_name = isset($_FILES['file']['tmp_name']) ? $_FILES['file']['tmp_name'] : '';
+if(!$tmp_name || !is_uploaded_file($tmp_name)) {
+	echo "上传失败，未检测到有效上传文件";
+} elseif(($imginfo = @getimagesize($tmp_name)) === false || !isset($imginfo['mime']) || $imginfo['mime'] !== 'image/png') {
+	echo "上传失败，仅允许上传PNG图片文件";
+} elseif(copy($tmp_name, ROOT.'assets/img/logo.png')){
 	echo "成功上传文件!<br>（可能需要清空浏览器缓存才能看到效果，按Ctrl+F5即可一键刷新缓存）";
 }else{
 	echo "上传失败，可能没有文件写入权限";
 }
 }
-echo '<form action="set.php?mod=upimg" method="POST" enctype="multipart/form-data"><label for="file"></label><input type="file" name="file" id="file" /><input type="hidden" name="s" value="1" /><br><input type="submit" class="btn btn-primary btn-block" value="确认上传" /></form><br>现在的图片：<br><img src="../assets/img/logo.png?r='.rand(10000,99999).'" style="max-width:100%">';
+echo '<form action="set.php?mod=upimg" method="POST" enctype="multipart/form-data"><label for="file"></label><input type="file" name="file" id="file" accept="image/png" /><input type="hidden" name="s" value="1" /><input type="hidden" name="csrf_token" value="'.htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8').'" /><br><input type="submit" class="btn btn-primary btn-block" value="确认上传" /></form><br>现在的图片：<br><img src="../assets/img/logo.png?r='.rand(10000,99999).'" style="max-width:100%">';
 echo '</div></div>';
 }
 ?>
@@ -2016,7 +2021,7 @@ function changeTemplate(template){
 	$.ajax({
 		type : 'POST',
 		url : 'ajax.php?act=set',
-		data : {template:template},
+		data : {template:template, csrf_token:window.adminCsrfToken || ''},
 		dataType : 'json',
 		success : function(data) {
 			layer.close(ii);
@@ -2051,7 +2056,7 @@ function testproxy(){
 	$.ajax({
 		type : 'POST',
 		url : 'ajax.php?act=testproxy',
-		data : {proxy_server:proxy_server, proxy_port:proxy_port, proxy_user:proxy_user, proxy_pwd:proxy_pwd, proxy_type:proxy_type},
+		data : {proxy_server:proxy_server, proxy_port:proxy_port, proxy_user:proxy_user, proxy_pwd:proxy_pwd, proxy_type:proxy_type, csrf_token:window.adminCsrfToken || ''},
 		dataType : 'json',
 		success : function(data) {
 			layer.close(ii);

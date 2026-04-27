@@ -69,7 +69,7 @@ function loadTable(){
 			}else{
 				layer.alert(data.msg, {icon: 2});
 			}
-		} 
+		}
 	});
 }
 function showTable(data){
@@ -126,7 +126,7 @@ function exportTable(){
 	if(startday == '' || endday == ''){
 		layer.alert('查询日期不能为空');return false;
 	}
-	window.location.href='./download.php?act=ustat&startday='+startday+'&endday='+endday+'&method='+method+'&type='+type;
+	window.location.href='./download.php?act=ustat&csrf_token='+encodeURIComponent(window.adminCsrfToken || '')+'&startday='+encodeURIComponent(startday)+'&endday='+encodeURIComponent(endday)+'&method='+encodeURIComponent(method)+'&type='+encodeURIComponent(type);
 }
 
 $(document).ready(function(){

@@ -8,9 +8,10 @@ if($islogin==1){}else exit("<script language='javascript'>window.location.href='
     <div class="col-xs-12 col-sm-10 col-lg-8 center-block" style="float: none;">
 <?php
 $app = isset($_GET['app'])?$_GET['app']:'alipay';
+if(!in_array($app, ['alipay','wxpay'], true)) $app = 'alipay';
 
 if(isset($_POST['submit'])){
-	if(!checkRefererHost())exit();
+	requireAdminCsrf(true);
 	$out_biz_no = trim($_POST['out_biz_no']);
 	if(!isset($_POST['paypwd']) || $_POST['paypwd']!==$conf['admin_paypwd'])showmsg('支付密码错误',3);
 	$money = trim($_POST['money']);
@@ -20,7 +21,7 @@ if(isset($_POST['submit'])){
 	if($desc && mb_strlen($desc)>32)showmsg('转账备注最多32个字',3);
 	if(!is_numeric($money) || !preg_match('/^[0-9.]+$/', $money) || $money<=0)showmsg('转账金额输入不规范',3);
 
-	$channelid = isset($_POST['channel'])?$_POST['channel']:null;
+	$channelid = isset($_POST['channel'])?intval($_POST['channel']):null;
 
 	$result = \lib\Transfer::red_add(0, $app, $out_biz_no, $money, $desc, $channelid);
 
@@ -51,8 +52,9 @@ if($app=='alipay'){
 			<li class="<?php echo $app=='alipay'?'active':null;?>"><a href="?app=alipay">支付宝</a></li><li class="<?php echo $app=='wxpay'?'active':null;?>"><a href="?app=wxpay">微信</a></li>
 		</ul>
 		<div class="tab-pane active" id="alipay">
-          <form action="?app=<?php echo $app?>" method="POST" role="form">
-			<input type="hidden" name="type" value="<?php echo $app?>"/>
+          <form action="?app=<?php echo htmlspecialchars($app, ENT_QUOTES, 'UTF-8'); ?>" method="POST" role="form">
+			<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>"/>
+			<input type="hidden" name="type" value="<?php echo htmlspecialchars($app, ENT_QUOTES, 'UTF-8'); ?>"/>
 		    <div class="form-group">
 				<div class="input-group"><div class="input-group-addon">通道选择</div>
 				<select name="channel" class="form-control" default="<?php echo $default_channel?>">

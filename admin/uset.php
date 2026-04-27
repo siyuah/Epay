@@ -475,7 +475,7 @@ echo '<tr><td><b>'.$res['id'].'</b></td><td><img src="/assets/icon/'.$paytypes[$
         </table>
       </div>
 	</div>
-	
+
 <a href="./ulist.php">>>返回商户列表</a>
 </div></div>
 <?php } ?>
@@ -755,7 +755,7 @@ function delItem(id) {
 	}, function(){
 	  $.ajax({
 		type : 'GET',
-		url : 'ajax_user.php?act=delSubChannel&id='+id,
+		url : 'ajax_user.php?act=delSubChannel&id='+encodeURIComponent(id)+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -776,7 +776,7 @@ function delItem(id) {
 function setStatus(id,status) {
 	$.ajax({
 		type : 'GET',
-		url : 'ajax_user.php?act=setSubChannel&id='+id+'&status='+status,
+		url : 'ajax_user.php?act=setSubChannel&id='+encodeURIComponent(id)+'&status='+encodeURIComponent(status)+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){

@@ -7,17 +7,44 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+requireAdminCsrfForActs($act, ['add_receiver','edit_receiver','set_receiver','del_receiver','submit','query','unfreeeze','return','editmoney','operation'], true);
+
+function appendPsReceiverSearchSql($sql, $column, $value){
+	$allowed = ['id','channel','uid','subchannel','account','name','rate','info','mode','status'];
+	if(!in_array($column, $allowed, true)) return $sql;
+	if($column == 'info'){
+		$value = daddslashes($value);
+		return $sql." AND (A.`info` LIKE '%{$value}%' OR A.`account` LIKE '%{$value}%')";
+	}
+	if(in_array($column, ['id','channel','uid','subchannel','mode','status'], true)){
+		$value = intval($value);
+	}else{
+		$value = daddslashes($value);
+	}
+	return $sql." AND A.`{$column}`='{$value}'";
+}
+
+function appendPsOrderSearchSql($sql, $column, $value, $alias = 'A'){
+	$allowed = ['id','rid','trade_no','api_trade_no','sub_trade_no','money','status','addtime','settle_no'];
+	if(!in_array($column, $allowed, true)) return $sql;
+	$prefix = $alias ? $alias.'.' : '';
+	if(in_array($column, ['id','rid','status'], true)){
+		$value = intval($value);
+	}elseif($column == 'money'){
+		if(!is_numeric($value)) return $sql;
+	}else{
+		$value = daddslashes($value);
+	}
+	return $sql." AND {$prefix}`{$column}`='{$value}'";
+}
+
 switch($act){
 
 case 'receiverList':
 	$sql = " 1=1";
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$value=daddslashes($_POST['value']);
-		if($_POST['column'] == 'info'){
-			$sql .= " AND (A.`info` LIKE '%{$value}%' OR A.`account` LIKE '%{$value}%')";
-		}else{
-			$sql .= " AND A.`{$_POST['column']}`='{$value}'";
-		}
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendPsReceiverSearchSql($sql, $column, $_POST['value']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
@@ -55,7 +82,8 @@ case 'orderList':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		$sql.=" AND A.`{$_POST['column']}`='{$_POST['value']}'";
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendPsOrderSearchSql($sql, $column, $_POST['value']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
@@ -101,7 +129,7 @@ case 'add_receiver':
 	}else{
 		$sql = "`uid` IS NULL";
 	}
-	$rows = $DB->getRow("SELECT * FROM `pre_psreceiver` WHERE `channel`='{$data['channel']}' AND {$sql}");
+	$rows = $DB->getRow("SELECT * FROM `pre_psreceiver` WHERE `channel`=:channel AND {$sql}", [':channel'=>$data['channel']]);
 	if($rows)exit('{"code":-1,"msg":"该支付通道&UID已存在分账规则"}');
 	if($DB->insert('psreceiver', $data)){
 		exit('{"code":0,"msg":"新增分账规则成功！"}');
@@ -133,7 +161,7 @@ case 'edit_receiver':
 	}else{
 		$sql = "`uid` IS NULL";
 	}
-	$rows = $DB->getRow("SELECT * FROM `pre_psreceiver` WHERE `channel`='{$data['channel']}' AND {$sql} AND id!='$id'");
+	$rows = $DB->getRow("SELECT * FROM `pre_psreceiver` WHERE `channel`=:channel AND {$sql} AND id!=:id", [':channel'=>$data['channel'], ':id'=>$id]);
 	if($rows)exit('{"code":-1,"msg":"该支付通道&UID已存在分账规则"}');
 	if($row['status']==1 && $data['channel'] != $row['channel']){
 		exit('{"code":-1,"msg":"请先将状态改为已关闭再切换通道"}');
@@ -143,7 +171,7 @@ case 'edit_receiver':
 		if($channel){
 			$new_info = json_decode($data['info'], true);
 			$old_info = !empty($row['info']) ? json_decode($row['info'], true) : [['account'=>$row['account'], 'name'=>$row['name'], 'rate'=>$row['rate']]];
-			
+
 			$model = \lib\ProfitSharing\CommUtil::getModel($channel);
 			foreach($new_info as $item){
 				if(!array_filter($old_info, function($v) use ($item) {
@@ -309,8 +337,9 @@ case 'operation': //批量操作订单
 	$checkbox=$_POST['checkbox'];
 	$i=0;
 	foreach($checkbox as $id){
-		if($status==5)$DB->exec("DELETE FROM pre_psorder WHERE id='$id'");
-		else $DB->exec("update pre_psorder set status='$status' where id='$id' limit 1");
+		$id = intval($id);
+		if($status==5)$DB->exec("DELETE FROM pre_psorder WHERE id=:id", [':id'=>$id]);
+		else $DB->exec("update pre_psorder set status=:status where id=:id limit 1", [':status'=>$status, ':id'=>$id]);
 		$i++;
 	}
 	exit('{"code":0,"msg":"成功改变'.$i.'条订单状态"}');
@@ -337,15 +366,11 @@ case 'statistics':
         }
     }
     if(isset($_POST['value']) && !empty($_POST['value'])) {
-        $column = daddslashes($_POST['column']);
-        if($column == 'money'){
-            $sql .= " AND {$column}='".floatval($_POST['value'])."'";
-        }else{
-            $sql .= " AND {$column}='".daddslashes($_POST['value'])."'";
-        }
+        $column = isset($_POST['column']) ? trim($_POST['column']) : '';
+        $sql = appendPsOrderSearchSql($sql, $column, $_POST['value'], '');
     }
 
-    $result = $DB->getRow("SELECT 
+    $result = $DB->getRow("SELECT
         SUM(money) AS totalMoney,
         SUM(CASE WHEN status = 2 THEN money ELSE 0 END) AS successMoney,
         SUM(CASE WHEN status = 3 THEN money ELSE 0 END) AS failMoney,
@@ -365,7 +390,7 @@ case 'statistics':
         'failCount' => $result['failCount'] ?? 0,
         'successRate' => $successRate
     ];
-    
+
     exit(json_encode(['code' => 0, 'data' => $data]));
 break;
 

@@ -380,7 +380,7 @@ echo '</div>
 	exit;
 }
 function sysmsg($msg = '未知的异常',$title = '站点提示信息') {
-    ?>  
+    ?>
     <!DOCTYPE html>
     <html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN">
     <head>
@@ -622,7 +622,7 @@ function processOrder(&$srow,$notify=true){
 			$sds=$DB->exec("INSERT INTO `pre_user` (`upid`, `key`, `money`, `email`, `phone`, `addtime`, `pay`, `settle`, `keylogin`, `apply`, `status`) VALUES (:upid, :key, '0.00', :email, :phone, NOW(), :paystatus, 1, 0, 0, 1)", [':upid'=>$info['upid'], ':key'=>$key, ':email'=>$info['email'], ':phone'=>$info['phone'], ':paystatus'=>$paystatus]);
 			$uid=$DB->lastInsertId();
 			$pwd = getMd5Pwd($info['pwd'], $uid);
-			$DB->exec("UPDATE `pre_user` SET `pwd`='{$pwd}' WHERE `uid`='$uid'");
+			$DB->exec("UPDATE `pre_user` SET `pwd`=:pwd WHERE `uid`=:uid", [':pwd'=>$pwd, ':uid'=>$uid]);
 			if($sds){
 				if(!empty($info['email'])){
 					$sub = $conf['sitename'].' - 注册成功通知';
@@ -691,7 +691,7 @@ function processOrder(&$srow,$notify=true){
 				$DB->exec("UPDATE pre_order SET notify=-1 WHERE trade_no='{$srow['trade_no']}'");
 				if($conf['black_payact'] == 2){
 					$params = ['trade_no'=>$srow['trade_no'], 'money'=>$srow['realmoney'], 'key'=>md5($srow['trade_no'].SYS_KEY.$srow['trade_no'])];
-            		get_curl($conf['localurl'].'api.php?act=refundapi', http_build_query($params));
+					get_curl($conf['localurl'].'api.php?act=refundapi', http_build_query($params));
 				}
 				return;
 			}
@@ -917,12 +917,54 @@ function is_idcard( $id )
 	}
 }
 
+function getAdminCsrfToken(){
+	if(session_status() === PHP_SESSION_NONE){
+		@session_start();
+	}
+	if(empty($_SESSION['admin_csrf_token']) || !is_string($_SESSION['admin_csrf_token'])){
+		$_SESSION['admin_csrf_token'] = bin2hex(random_bytes(32));
+	}
+	return $_SESSION['admin_csrf_token'];
+}
+
+function getRequestCsrfToken(){
+	$headers = function_exists('getallheaders') ? getallheaders() : [];
+	foreach($headers as $key=>$value){
+		if(strtolower($key) === 'x-csrf-token') return trim($value);
+	}
+	if(isset($_SERVER['HTTP_X_CSRF_TOKEN'])) return trim($_SERVER['HTTP_X_CSRF_TOKEN']);
+	if(isset($_POST['csrf_token'])) return trim($_POST['csrf_token']);
+	if(isset($_REQUEST['csrf_token'])) return trim($_REQUEST['csrf_token']);
+	return '';
+}
+
+function checkAdminCsrfToken(){
+	$token = getRequestCsrfToken();
+	$session_token = isset($_SESSION['admin_csrf_token']) ? $_SESSION['admin_csrf_token'] : '';
+	return is_string($token) && is_string($session_token) && $token !== '' && hash_equals($session_token, $token);
+}
+
+function requireAdminCsrf($require_post = true){
+	if($require_post && strtoupper($_SERVER['REQUEST_METHOD']) !== 'POST'){
+		exit('{"code":403,"msg":"CSRF check failed"}');
+	}
+	if(!checkRefererHost() || !checkAdminCsrfToken()){
+		exit('{"code":403,"msg":"CSRF check failed"}');
+	}
+}
+
+function requireAdminCsrfForActs($act, $acts, $require_post = true){
+	if(in_array($act, $acts, true)){
+		requireAdminCsrf($require_post);
+	}
+}
+
 function checkRefererHost(){
 	if(!$_SERVER['HTTP_REFERER'])return false;
 	$url_arr = parse_url($_SERVER['HTTP_REFERER']);
 	$http_host = $_SERVER['HTTP_HOST'];
 	if(strpos($http_host,':'))$http_host = substr($http_host, 0, strpos($http_host, ':'));
-	return $url_arr['host'] === $http_host;
+	return isset($url_arr['host']) && $url_arr['host'] === $http_host;
 }
 function randFloat($min=0, $max=1){
 	return $min + mt_rand()/mt_getrandmax() * ($max-$min);
@@ -1126,8 +1168,9 @@ function checkPayVerifyOpen($pid){
 		$count = intval($conf['pay_verify_check_count']);
 		$sucrate = floatval($conf['pay_verify_check_rate']);
 		if($second>0 || $count>0 || $sucrate>0){
-			$total_num=$DB->getColumn("SELECT count(*) FROM pre_order WHERE uid='$pid' AND addtime>=DATE_SUB(NOW(), INTERVAL {$second} SECOND)");
-			$succ_num=$DB->getColumn("SELECT count(*) FROM pre_order WHERE uid='$pid' AND addtime>=DATE_SUB(NOW(), INTERVAL {$second} SECOND) AND status>0");
+			$pid = intval($pid);
+			$total_num=$DB->getColumn("SELECT count(*) FROM pre_order WHERE uid='{$pid}' AND addtime>=DATE_SUB(NOW(), INTERVAL {$second} SECOND)");
+			$succ_num=$DB->getColumn("SELECT count(*) FROM pre_order WHERE uid='{$pid}' AND addtime>=DATE_SUB(NOW(), INTERVAL {$second} SECOND) AND status>0");
 			if($total_num >= $count){
 				$succ_rate = round($succ_num * 100 / $total_num, 2);
 				if($succ_rate < $sucrate){

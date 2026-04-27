@@ -7,6 +7,25 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+requireAdminCsrfForActs($act, ['transfer_cancel','balance_query','setTransferStatus','delTransfer','refundTransfer','transfer_proof','operation','batch_submit'], true);
+
+
+function appendTransferSearchSql($sql, $column, $value){
+	$allowed = ['biz_no','out_biz_no','uid','type','channel','account','username','money','costmoney','status','desc'];
+	if(!in_array($column, $allowed, true)) return $sql;
+	if($column === 'username' || $column === 'desc'){
+		$value = daddslashes($value);
+		return $sql." AND `{$column}` LIKE '%{$value}%'";
+	}
+	if(in_array($column, ['uid','channel','status'], true)){
+		$value = intval($value);
+	}elseif(in_array($column, ['money','costmoney'], true)){
+		if(!is_numeric($value)) return $sql;
+	}else{
+		$value = daddslashes($value);
+	}
+	return $sql." AND `{$column}`='{$value}'";
+}
 switch($act){
 case 'transferList':
 	$sql=" 1=1";
@@ -37,11 +56,8 @@ case 'transferList':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='username'||$_POST['column']=='desc'){
-			$sql.=" AND `{$_POST['column']}` LIKE '%{$_POST['value']}%'";
-		}else{
-			$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-		}
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendTransferSearchSql($sql, $column, $_POST['value']);
 	}
 	$offset = intval($_POST['offset']);
 	$limit = intval($_POST['limit']);
@@ -90,14 +106,11 @@ case 'statistics':
 		}
 	}
 	if(isset($_POST['value']) && !empty($_POST['value'])) {
-		if($_POST['column']=='username'||$_POST['column']=='desc'){
-			$sql.=" AND `{$_POST['column']}` LIKE '%{$_POST['value']}%'";
-		}else{
-			$sql.=" AND `{$_POST['column']}`='{$_POST['value']}'";
-		}
+		$column = isset($_POST['column']) ? trim($_POST['column']) : '';
+		$sql = appendTransferSearchSql($sql, $column, $_POST['value']);
 	}
 	$totalMoney = $DB->getColumn("SELECT SUM(money) FROM pre_transfer WHERE{$sql} AND status<>2");
-	$resultCount = $DB->getRow("SELECT 
+	$resultCount = $DB->getRow("SELECT
     COUNT(*) AS totalCount,
     COUNT(status = 0 OR NULL) AS status0count,
     COUNT(status = 1 OR NULL) AS status1count,
@@ -159,7 +172,7 @@ case 'refundTransfer':
 	$biz_no=$_POST['biz_no'];
 	$order = $DB->find('transfer', '*', ['biz_no' => $biz_no]);
     if(!$order) exit('{"code":-1,"msg":"付款记录不存在！"}');
-	if($DB->exec("UPDATE pre_transfer SET status='2' WHERE biz_no='$biz_no'")){
+	if($DB->exec("UPDATE pre_transfer SET status='2' WHERE biz_no=:biz_no", [':biz_no'=>$biz_no])){
 		if($order['uid'] > 0){
 			changeUserMoney($order['uid'], $order['costmoney'], true, '代付退回', $biz_no);
 		}

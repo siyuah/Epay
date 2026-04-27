@@ -25,6 +25,25 @@ if($admin_cdnpublic==1){
   <link href="<?php echo $cdnpublic?>font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"/>
   <script src="<?php echo $cdnpublic?>modernizr/2.8.3/modernizr.min.js"></script>
   <script src="<?php echo $cdnpublic?>jquery/3.4.1/jquery.min.js"></script>
+  <?php if($islogin==1){?><meta name="csrf-token" content="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+  <script>
+  window.adminCsrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+  $.ajaxSetup({
+    headers: {'X-CSRF-Token': window.adminCsrfToken},
+    dataFilter: function(data, type){ return data; },
+    beforeSend: function(xhr, settings){
+      if (settings.type && settings.type.toUpperCase() === 'POST') {
+        if (typeof settings.data === 'string' && settings.data.length > 0) {
+          if (settings.data.indexOf('csrf_token=') === -1) settings.data += '&csrf_token=' + encodeURIComponent(window.adminCsrfToken);
+        } else if (!settings.data) {
+          settings.data = 'csrf_token=' + encodeURIComponent(window.adminCsrfToken);
+        } else if (typeof settings.data === 'object' && !(settings.data instanceof FormData)) {
+          settings.data.csrf_token = window.adminCsrfToken;
+        }
+      }
+    }
+  });
+  </script><?php }?>
   <script src="<?php echo $cdnpublic?>twitter-bootstrap/3.4.1/js/bootstrap.min.js"></script>
   <!--[if lt IE 9]>
     <script src="<?php echo $cdnpublic?>html5shiv/3.7.3/html5shiv.min.js"></script>
@@ -130,7 +149,7 @@ if($admin_cdnpublic==1){
         <?php if(class_exists('\\lib\\WxMchRisk')){?><li><a href="./mchrisk.php">渠道商户违规记录</a></li><?php }?>
             </ul>
           </li>
-          <li><a href="./login.php?logout" onclick="return confirm('是否确定退出登录？')"><i class="fa fa-power-off"></i> 退出登录</a></li>
+          <li><a href="./login.php?logout&csrf_token=<?php echo urlencode(getAdminCsrfToken())?>" onclick="return confirm('是否确定退出登录？')"><i class="fa fa-power-off"></i> 退出登录</a></li>
         </ul>
       </div><!-- /.navbar-collapse -->
     </div><!-- /.container -->

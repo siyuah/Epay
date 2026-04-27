@@ -24,6 +24,7 @@ $list = $DB->getAll("SELECT * FROM pre_wework ORDER BY id ASC");
 			</div>
 			<div class="modal-body">
 				<form class="form-horizontal" id="form-store">
+					<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 					<input type="hidden" name="action" id="action"/>
 					<input type="hidden" name="id" id="id"/>
 					<div class="form-group">
@@ -77,7 +78,7 @@ echo '<tr><td><b>'.$res['id'].'</b></td><td>'.$res['name'].'</td><td>'.$res['app
         </div>
     </div>
 	</div>
-	
+
   </div>
 <script src="<?php echo $cdnpublic?>layer/3.1.1/layer.js"></script>
 <script>
@@ -152,7 +153,7 @@ function delItem(id) {
 		var ii = layer.load(2, {shade:[0.1,'#fff']});
 	  $.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=delWework&id='+id,
+		url : 'ajax_pay.php?act=delWework&id='+id+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			layer.close(ii);
@@ -174,7 +175,7 @@ function delItem(id) {
 function setStatus(id,status) {
 	$.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=setWework&id='+id+'&status='+status,
+		url : 'ajax_pay.php?act=setWework&id='+id+'&status='+status+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -194,7 +195,7 @@ function refreshnum(id) {
 	$.ajax({
 		type : 'POST',
 		url : 'ajax_pay.php?act=refreshWework',
-		data : {id:id},
+		data : {id:id, csrf_token:window.adminCsrfToken || ''},
 		dataType : 'json',
 		success : function(data) {
 			layer.close(ii);
@@ -215,7 +216,7 @@ function testwework(id) {
 	$.ajax({
 		type : 'POST',
 		url : 'ajax_pay.php?act=testWework',
-		data : {id:id},
+		data : {id:id, csrf_token:window.adminCsrfToken || ''},
 		dataType : 'json',
 		success : function(data) {
 			layer.close(ii);

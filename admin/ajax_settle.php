@@ -7,6 +7,8 @@ if(!checkRefererHost())exit('{"code":403}');
 
 @header('Content-Type: application/json; charset=UTF-8');
 
+requireAdminCsrfForActs($act, ['create_batch','complete_batch','setSettleStatus','opslist','settle_setresult','settle_save','paypwd_input','paypwd_reset','transfer'], false);
+
 switch($act){
 case 'settleList':
 	$sql=" 1=1";
@@ -57,7 +59,7 @@ case 'create_batch':
 	$rs=$DB->query("SELECT * from pre_settle where status=0");
 	while($row = $rs->fetch())
 	{
-		$DB->exec("UPDATE pre_settle SET batch='$batch',status=2 WHERE id='{$row['id']}'");
+		$DB->exec("UPDATE pre_settle SET batch=:batch,status=2 WHERE id=:id", [':batch'=>$batch, ':id'=>$row['id']]);
 		$allmoney+=$row['realmoney'];
 	}
 	$DB->insert('batch', ['batch'=>$batch, 'allmoney'=>$allmoney, 'count'=>$count, 'time'=>'NOW()', 'status'=>0]);
@@ -66,7 +68,7 @@ case 'create_batch':
 break;
 case 'complete_batch':
 	$batch=trim($_POST['batch']);
-	$DB->exec("UPDATE pre_settle SET status=1 WHERE batch='$batch'");
+	$DB->exec("UPDATE pre_settle SET status=1 WHERE batch=:batch", [':batch'=>$batch]);
 	exit('{"code":0,"msg":"succ"}');
 break;
 case 'setSettleStatus':
@@ -75,7 +77,7 @@ case 'setSettleStatus':
 	if($status==4){
 		$row = $DB->find('settle', 'uid,money', ['id'=>$id]);
 		if(!$row) exit('{"code":200}');
-		if($DB->exec("DELETE FROM pre_settle WHERE id='$id'")){
+		if($DB->exec("DELETE FROM pre_settle WHERE id=:id", [':id'=>$id])){
 			changeUserMoney($row['uid'], $row['money'], true, '结算失败退回');
 			exit('{"code":200}');
 		}
@@ -84,39 +86,44 @@ case 'setSettleStatus':
 		}
 	}else{
 		if($status==1){
-			$sql = "update pre_settle set status='$status',endtime='$date',result=NULL where id='$id'";
+			$sql = "update pre_settle set status=:status,endtime=:endtime,result=NULL where id=:id";
+			$params = [':status'=>$status, ':endtime'=>$date, ':id'=>$id];
 
 			$row = $DB->find('settle', 'uid,money,realmoney,account', ['id'=>$id]);
 			\lib\MsgNotice::send('settle', $row['uid'], ['money'=>$row['money'], 'realmoney'=>$row['realmoney'], 'time'=>date('Y-m-d H:i:s'), 'account'=>$row['account']]);
 		}else{
-			$sql = "update pre_settle set status='$status',endtime=NULL where id='$id'";
+			$sql = "update pre_settle set status=:status,endtime=NULL where id=:id";
+			$params = [':status'=>$status, ':id'=>$id];
 		}
-		if($DB->exec($sql)!==false)
+		if($DB->exec($sql, $params)!==false)
 			exit('{"code":200}');
 		else
 			exit('{"code":400,"msg":"修改记录失败！['.$DB->error().']"}');
 	}
 break;
 case 'opslist':
-	$status=$_POST['status'];
+	$status=intval($_POST['status']);
 	$checkbox=$_POST['checkbox'];
 	$i=0;
 	foreach($checkbox as $id){
 		if($status==4){
-			$sql = "DELETE FROM pre_settle WHERE id='$id'";
+			$sql = "DELETE FROM pre_settle WHERE id=:id";
+			$params = [':id'=>intval($id)];
 		}elseif($status==1){
-			$sql = "update pre_settle set status='$status',endtime='$date',result=NULL where id='$id'";
+			$sql = "update pre_settle set status=:status,endtime=:endtime,result=NULL where id=:id";
+			$params = [':status'=>$status, ':endtime'=>$date, ':id'=>$id];
 		}else{
-			$sql = "update pre_settle set status='$status',endtime=NULL where id='$id'";
+			$sql = "update pre_settle set status=:status,endtime=NULL where id=:id";
+			$params = [':status'=>$status, ':id'=>$id];
 		}
-		$DB->exec($sql);
+		$DB->exec($sql, $params);
 		$i++;
 	}
 	exit('{"code":0,"msg":"成功改变'.$i.'条记录状态"}');
 break;
 case 'settle_result':
 	$id=intval($_POST['id']);
-	$row=$DB->getRow("select result from pre_settle where id='$id' limit 1");
+	$row=$DB->getRow("select result from pre_settle where id=:id limit 1", [':id'=>$id]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前结算记录不存在！"}');
 	$result = ['code'=>0,'msg'=>'succ','result'=>$row['result']];
@@ -125,10 +132,10 @@ break;
 case 'settle_setresult':
 	$id=intval($_POST['id']);
 	$result=trim($_POST['result']);
-	$row=$DB->getRow("select * from pre_settle where id='$id' limit 1");
+	$row=$DB->getRow("select * from pre_settle where id=:id limit 1", [':id'=>$id]);
 	if(!$row)
 		exit('{"code":-1,"msg":"当前结算记录不存在！"}');
-	$sds = $DB->exec("UPDATE pre_settle SET result='$result' WHERE id='$id'");
+	$sds = $DB->exec("UPDATE pre_settle SET result=:result WHERE id=:id", [':result'=>$result, ':id'=>$id]);
 	if($sds!==false)
 		exit('{"code":0,"msg":"修改成功！"}');
 	else
@@ -136,7 +143,7 @@ case 'settle_setresult':
 break;
 case 'settle_info':
 	$id=intval($_GET['id']);
-	$rows=$DB->getRow("select * from pre_settle where id='$id' limit 1");
+	$rows=$DB->getRow("select * from pre_settle where id=:id limit 1", [':id'=>$id]);
 	if(!$rows)
 		exit('{"code":-1,"msg":"当前结算记录不存在！"}');
 	$data = '<div class="form-group"><div class="input-group"><div class="input-group-addon">结算方式</div><select class="form-control" id="pay_type" default="'.$rows['type'].'">'.($conf['settle_alipay']?'<option value="1">支付宝</option>':null).''.($conf['settle_wxpay']?'<option value="2">微信</option>':null).''.($conf['settle_qqpay']?'<option value="3">QQ钱包</option>':null).''.($conf['settle_bank']?'<option value="4">银行卡</option>':null).'</select></div></div>';
@@ -185,7 +192,7 @@ case 'transfer':
 
 	if(!isset($_SESSION['paypwd']) || $_SESSION['paypwd']!==$conf['admin_paypwd'])exit('{"code":-1,"msg":"支付密码错误，请返回重新进入该页面"}');
 
-	$row=$DB->getRow("SELECT * FROM pre_settle WHERE id='{$id}' limit 1");
+	$row=$DB->getRow("SELECT * FROM pre_settle WHERE id=:id limit 1", [':id'=>$id]);
 	if(!$row)exit('{"code":-1,"msg":"记录不存在"}');
 	if($row['type']!=$type)exit('{"code":-1,"msg":"转账类型不正确"}');
 

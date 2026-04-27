@@ -41,6 +41,7 @@ unset($rs);
 			</div>
 			<div class="modal-body">
 				<form class="form-horizontal" id="form-store">
+					<input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(getAdminCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
 					<input type="hidden" name="action" id="action"/>
 					<input type="hidden" name="id" id="id"/>
 					<div class="form-group">
@@ -440,7 +441,7 @@ function delItem(id) {
 	}, function(){
 	  $.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=delChannel&id='+id,
+		url : 'ajax_pay.php?act=delChannel&id='+id+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -462,7 +463,7 @@ function delItem(id) {
 function setStatus(id,status) {
 	$.ajax({
 		type : 'GET',
-		url : 'ajax_pay.php?act=setChannel&id='+id+'&status='+status,
+		url : 'ajax_pay.php?act=setChannel&id='+id+'&status='+status+'&csrf_token='+encodeURIComponent(window.adminCsrfToken || ''),
 		dataType : 'json',
 		success : function(data) {
 			if(data.code == 0){
@@ -609,7 +610,7 @@ function testpay(id) {
 			$.ajax({
 				type : 'POST',
 				url : 'ajax_pay.php?act=testpay',
-				data : {channel:id, name:name, money:money},
+				data : {channel:id, name:name, money:money, csrf_token:window.adminCsrfToken || ''},
 				dataType : 'json',
 				success : function(data) {
 					if(data.code == 0){

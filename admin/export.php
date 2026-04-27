@@ -18,6 +18,7 @@ unset($rs);
 <div class="panel-heading"><h3 class="panel-title">导出订单</h3></div>
 <div class="panel-body">
 		<form action="" method="POST" onsubmit="return exportOrder()" role="form">
+			<input type="hidden" name="csrf_token" value="<?php echo getAdminCsrfToken()?>">
 			<div class="form-group">
 				<div class="input-group input-daterange"><div class="input-group-addon">时间范围</div>
 				<input type="text" id="starttime" name="starttime" class="form-control" placeholder="开始日期*" autocomplete="off" required>
@@ -57,10 +58,11 @@ function exportOrder(){
 	var type = $("select[name='type']").val();
 	var channel = $("input[name='channel']").val();
 	var dstatus = $("select[name='dstatus']").val();
+	var csrfToken = $("input[name='csrf_token']").val();
 	if(starttime == '' || endtime == ''){
 		layer.alert('时间范围是必填的！'); return false;
 	}
-	window.location.href='./download.php?act=order&starttime='+starttime+'&endtime='+endtime+'&uid='+uid+'&type='+type+'&channel='+channel+'&dstatus='+dstatus;
+	window.location.href='./download.php?act=order&starttime='+encodeURIComponent(starttime)+'&endtime='+encodeURIComponent(endtime)+'&uid='+encodeURIComponent(uid)+'&type='+encodeURIComponent(type)+'&channel='+encodeURIComponent(channel)+'&dstatus='+encodeURIComponent(dstatus)+'&csrf_token='+encodeURIComponent(csrfToken);
 	return false;
 }
 $(document).ready(function(){
